@@ -172,7 +172,7 @@ export default function EditBlogPostPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      await updateBlogPost(post!.id, updateData);
+      await updateBlogPost(post!.slug, updateData);
       
       toast.success('Blog post updated successfully!');
       router.push('/cms/blog');

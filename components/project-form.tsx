@@ -64,8 +64,7 @@ export function ProjectForm({
   useEffect(() => {
     const loadClients = async () => {
       try {
-        const response = await fetchClients();
-        const clientsData = response.clients;
+        const clientsData = await fetchClients();
         setClients(clientsData);
       } catch (error) {
         console.error('Failed to load clients:', error);

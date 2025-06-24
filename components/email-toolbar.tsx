@@ -54,7 +54,10 @@ export function EmailToolbar({
           checked={isAllSelected}
           ref={(ref) => {
             if (ref) {
-              ref.indeterminate = isIndeterminate
+              const input = ref.querySelector('input')
+              if (input) {
+                input.indeterminate = isIndeterminate
+              }
             }
           }}
           onCheckedChange={onSelectAll}

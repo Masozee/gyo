@@ -167,7 +167,7 @@ export default function CMSPortfolioPage() {
     }
   };
 
-  const categories = Array.from(new Set(items.map(item => item.category).filter(Boolean)));
+  const categories = Array.from(new Set(items.map(item => item.category).filter((cat): cat is string => Boolean(cat))));
 
   const filteredAndSortedItems = items
     .filter(item => {
