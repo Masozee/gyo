@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+export const runtime = 'nodejs';
 
 // Mock blog data - In a real app, this would come from a database
 const blogData = {

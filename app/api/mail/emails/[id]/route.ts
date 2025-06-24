@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const runtime = 'nodejs';
 import { getEmailById, updateEmail, deleteEmail } from '@/lib/email-storage'
 
 // For now, use a mock user ID. In a real app, this would come from authentication

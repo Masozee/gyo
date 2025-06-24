@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
 import { db } from '@/lib/db';
 import { blogPosts, blogCategories, users } from '@/lib/schema';
 import { eq, and, desc } from 'drizzle-orm';

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+export const runtime = 'nodejs';
 
 // Mock portfolio data - In a real app, this would come from a database
 const portfolioData = {
