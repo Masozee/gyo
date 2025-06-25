@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 import { db } from '@/lib/db';
 import { pages } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
