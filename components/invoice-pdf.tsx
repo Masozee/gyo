@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { InvoiceWithRelations } from '@/lib/api/invoices-server';
+import { formatCurrency, defaultCurrencySettings } from '@/lib/format-currency';
 
 // Define styles that match the invoice design exactly
 const styles = StyleSheet.create({
@@ -177,12 +178,8 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
     accountHolder: "Nuroji Lukman Syah"
   }
 }) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount).replace('IDR', 'Rp ');
+  const formatCurrencyAmount = (amount: number) => {
+    return formatCurrency(amount, defaultCurrencySettings);
   };
 
   const formatDate = (dateString: string) => {
@@ -262,13 +259,13 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
                 <Text style={styles.tableCellTextLeft}>{item.description || 'No description'}</Text>
               </View>
               <View style={styles.priceCol}>
-                <Text style={styles.tableCellTextRight}>{formatCurrency(item.unitPrice || 0)}</Text>
+                <Text style={styles.tableCellTextRight}>{formatCurrencyAmount(item.unitPrice || 0)}</Text>
               </View>
               <View style={styles.discountCol}>
                 <Text style={styles.tableCellText}>-</Text>
               </View>
               <View style={styles.totalCol}>
-                <Text style={styles.tableCellTextRight}>{formatCurrency(item.totalPrice || (item.quantity || 1) * (item.unitPrice || 0))}</Text>
+                <Text style={styles.tableCellTextRight}>{formatCurrencyAmount(item.totalPrice || (item.quantity || 1) * (item.unitPrice || 0))}</Text>
               </View>
             </View>
           ))}
@@ -310,7 +307,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
           <View style={styles.totalSection}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalAmount}>{formatCurrency(invoice.totalAmount || 0)}</Text>
+              <Text style={styles.totalAmount}>{formatCurrencyAmount(invoice.totalAmount || 0)}</Text>
             </View>
           </View>
         </View>

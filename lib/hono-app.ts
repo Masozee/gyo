@@ -11,6 +11,7 @@ import {
   createShortenedUrl, 
   getShortenedUrls, 
   deleteShortenedUrl, 
+  getUrlAnalytics,
   createQrCode, 
   getQrCodes, 
   deleteQrCode, 
@@ -1041,6 +1042,30 @@ app.delete('/tools/urls/:id', async (c) => {
     console.error('Error deleting shortened URL:', error)
     if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to delete shortened URL' })
+  }
+})
+
+// URL analytics endpoint
+app.get('/tools/urls/:id/analytics', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const id = parseInt(c.req.param('id'))
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid URL ID' })
+    }
+
+    const analytics = await getUrlAnalytics(id, userId)
+    if (!analytics) {
+      throw new HTTPException(404, { message: 'Shortened URL not found' })
+    }
+    
+    return c.json(analytics)
+  } catch (error) {
+    console.error('Error fetching URL analytics:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch URL analytics' })
   }
 })
 

@@ -52,7 +52,13 @@ import Link from "next/link"
 const fetchWebsiteTraffic = async () => {
   try {
     // This would typically fetch from your analytics API (Google Analytics, etc.)
-    const response = await fetch('/api/analytics/website-traffic')
+    const response = await fetch('/api/analytics/website-traffic', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-cache'
+    })
     if (!response.ok) {
       throw new Error(`Failed to fetch website traffic: ${response.status}`)
     }
@@ -62,7 +68,7 @@ const fetchWebsiteTraffic = async () => {
     }
     throw new Error('Invalid response format')
   } catch (error) {
-    console.error('Website traffic fetch error:', error)
+    console.warn('Website traffic fetch error, using fallback data:', error)
     // Fallback to realistic sample data
     return Array.from({ length: 7 }, (_, i) => ({
       date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -76,7 +82,13 @@ const fetchWebsiteTraffic = async () => {
 const fetchApiTraffic = async () => {
   try {
     // This would typically fetch from your server logs or monitoring service
-    const response = await fetch('/api/analytics/api-traffic')
+    const response = await fetch('/api/analytics/api-traffic', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-cache'
+    })
     if (!response.ok) {
       throw new Error(`Failed to fetch API traffic: ${response.status}`)
     }
@@ -86,7 +98,7 @@ const fetchApiTraffic = async () => {
     }
     throw new Error('Invalid response format')
   } catch (error) {
-    console.error('API traffic fetch error:', error)
+    console.warn('API traffic fetch error, using fallback data:', error)
     // Fallback to realistic sample data
     return Array.from({ length: 7 }, (_, i) => ({
       date: new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -100,11 +112,22 @@ const fetchApiTraffic = async () => {
 
 // Enhanced sample data with more realistic values
 const generateRealtimeData = async () => {
-  // Fetch real traffic data
-  const [websiteTraffic, apiTraffic] = await Promise.all([
-    fetchWebsiteTraffic(),
-    fetchApiTraffic()
-  ])
+  // Fetch real traffic data with error handling
+  let websiteTraffic = []
+  let apiTraffic = []
+  
+  try {
+    const results = await Promise.allSettled([
+      fetchWebsiteTraffic(),
+      fetchApiTraffic()
+    ])
+    
+    websiteTraffic = results[0].status === 'fulfilled' ? results[0].value : []
+    apiTraffic = results[1].status === 'fulfilled' ? results[1].value : []
+  } catch (error) {
+    console.warn('Error fetching traffic data:', error)
+    // All functions have their own fallbacks, so this shouldn't happen
+  }
 
   const projects = [
     {

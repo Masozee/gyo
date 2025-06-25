@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Calculator } from 'lucide-react';
 import type { InvoiceFormData } from '@/lib/api/invoices';
 import type { Client, Project } from '@/lib/schema';
+import { formatCurrency, defaultCurrencySettings, getCurrencySymbol } from '@/lib/format-currency';
 
 interface InvoiceFormProps {
   initialData?: Partial<InvoiceFormData>;
@@ -49,7 +50,7 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
     taxRate: initialData?.taxRate || 0,
     taxAmount: initialData?.taxAmount || 0,
     totalAmount: initialData?.totalAmount || 0,
-    currency: initialData?.currency || 'USD',
+    currency: initialData?.currency || 'EUR',
     status: initialData?.status || 'DRAFT',
     notes: initialData?.notes || '',
     terms: initialData?.terms || '',
@@ -152,11 +153,14 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
     onSubmit(formData);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: formData.currency,
-    }).format(amount);
+  const formatCurrencyAmount = (amount: number) => {
+    // Use the currency from form data
+    const currencySettings = {
+      ...defaultCurrencySettings,
+      defaultCurrency: formData.currency,
+      currencySymbol: getCurrencySymbol(formData.currency),
+    };
+    return formatCurrency(amount, currencySettings);
   };
 
   return (
@@ -271,10 +275,16 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="JPY">JPY</SelectItem>
+                  <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
+                  <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
+                  <SelectItem value="GBP">GBP - British Pound (£)</SelectItem>
+                  <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
+                  <SelectItem value="SEK">SEK - Swedish Krona (kr)</SelectItem>
+                  <SelectItem value="NOK">NOK - Norwegian Krone (kr)</SelectItem>
+                  <SelectItem value="DKK">DKK - Danish Krone (kr)</SelectItem>
+                  <SelectItem value="PLN">PLN - Polish Złoty (zł)</SelectItem>
+                  <SelectItem value="CZK">CZK - Czech Koruna (Kč)</SelectItem>
+                  <SelectItem value="JPY">JPY - Japanese Yen (¥)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -333,7 +343,7 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
                 <div className="col-span-2">
                   <Label>Total</Label>
                   <div className="font-medium text-sm p-2 bg-gray-50 rounded">
-                    {formatCurrency(item.totalPrice)}
+                    {formatCurrencyAmount(item.totalPrice)}
                   </div>
                 </div>
                 <div className="col-span-1">
@@ -365,7 +375,7 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span>Subtotal:</span>
-              <span className="font-medium">{formatCurrency(formData.subtotal)}</span>
+              <span className="font-medium">{formatCurrencyAmount(formData.subtotal)}</span>
             </div>
             
             <div className="flex justify-between items-center">
@@ -382,14 +392,14 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
                   className="w-20"
                 />
               </div>
-              <span className="font-medium">{formatCurrency(formData.taxAmount)}</span>
+              <span className="font-medium">{formatCurrencyAmount(formData.taxAmount)}</span>
             </div>
             
             <Separator />
             
             <div className="flex justify-between items-center text-lg font-semibold">
               <span>Total Amount:</span>
-              <span>{formatCurrency(formData.totalAmount)}</span>
+              <span>{formatCurrencyAmount(formData.totalAmount)}</span>
             </div>
           </div>
         </CardContent>

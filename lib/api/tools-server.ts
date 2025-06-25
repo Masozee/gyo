@@ -1,5 +1,6 @@
 import { eq, desc, and, isNotNull, sql } from 'drizzle-orm'
 import { db } from '../db'
+import { UAParser } from 'ua-parser-js'
 import { 
   shortenedUrls, 
   urlClicks, 
@@ -29,35 +30,41 @@ export async function createShortenedUrl(data: {
   description?: string
   expiresAt?: string
 }): Promise<ShortenedUrlWithRelations> {
-  // Generate short code if no custom alias provided
-  const shortCode = data.customAlias || generateShortCode()
-  
-  // Check if alias/shortcode already exists
-  const [existing] = await db
-    .select()
-    .from(shortenedUrls)
-    .where(
-      data.customAlias 
-        ? eq(shortenedUrls.customAlias, data.customAlias)
-        : eq(shortenedUrls.shortCode, shortCode)
-    )
-    .limit(1)
-  
-  if (existing) {
-    throw new Error('Short code or alias already exists')
-  }
+  try {
+    // Generate short code if no custom alias provided
+    const shortCode = data.customAlias || generateShortCode()
+    
+    // Check if alias/shortcode already exists
+    const [existing] = await db
+      .select()
+      .from(shortenedUrls)
+      .where(
+        data.customAlias 
+          ? eq(shortenedUrls.customAlias, data.customAlias)
+          : eq(shortenedUrls.shortCode, shortCode)
+      )
+      .limit(1)
+    
+    if (existing) {
+      throw new Error('Short code or alias already exists')
+    }
 
-  const newUrl: NewShortenedUrl = {
-    userId: data.userId,
-    originalUrl: data.originalUrl,
-    shortCode,
-    customAlias: data.customAlias,
-    description: data.description,
-    expiresAt: data.expiresAt,
-  }
+    const newUrl: NewShortenedUrl = {
+      userId: data.userId,
+      originalUrl: data.originalUrl,
+      shortCode,
+      customAlias: data.customAlias || null,
+      description: data.description || null,
+      expiresAt: data.expiresAt || null,
+    }
 
-  const [result] = await db.insert(shortenedUrls).values(newUrl).returning()
-  return result as ShortenedUrlWithRelations
+    const [result] = await db.insert(shortenedUrls).values(newUrl).returning()
+    
+    return result as ShortenedUrlWithRelations
+  } catch (error) {
+    console.error('Error in createShortenedUrl:', error)
+    throw error
+  }
 }
 
 export async function getShortenedUrls(userId: number): Promise<ShortenedUrlWithRelations[]> {
@@ -108,21 +115,53 @@ export async function trackUrlClick(data: {
   referer?: string
   country?: string
   city?: string
-  device?: string
-  browser?: string
-  os?: string
 }): Promise<void> {
+  // Parse user agent for device/browser/OS info
+  let device = 'Unknown'
+  let browser = 'Unknown'
+  let os = 'Unknown'
+  
+  if (data.userAgent) {
+    try {
+      const parser = new UAParser(data.userAgent)
+      const result = parser.getResult()
+      
+      // Determine device type
+      if (result.device.type) {
+        device = result.device.type.charAt(0).toUpperCase() + result.device.type.slice(1)
+      } else if (result.os.name?.toLowerCase().includes('mobile') || 
+                 result.os.name?.toLowerCase().includes('android') ||
+                 result.os.name?.toLowerCase().includes('ios')) {
+        device = 'Mobile'
+      } else {
+        device = 'Desktop'
+      }
+      
+      // Get browser name
+      if (result.browser.name) {
+        browser = result.browser.name
+      }
+      
+      // Get OS name
+      if (result.os.name) {
+        os = result.os.name
+      }
+    } catch (error) {
+      console.error('Error parsing user agent:', error)
+    }
+  }
+
   // Insert click record
   const clickData: NewUrlClick = {
     shortenedUrlId: data.shortenedUrlId,
     ip: data.ip,
     userAgent: data.userAgent,
     referer: data.referer,
-    country: data.country,
+    country: data.country || 'Unknown',
     city: data.city,
-    device: data.device,
-    browser: data.browser,
-    os: data.os,
+    device,
+    browser,
+    os,
   }
   
   await db.insert(urlClicks).values(clickData)
@@ -136,6 +175,164 @@ export async function trackUrlClick(data: {
       updatedAt: new Date().toISOString(),
     })
     .where(eq(shortenedUrls.id, data.shortenedUrlId))
+}
+
+export async function getUrlAnalytics(id: number, userId: number): Promise<{
+  url: ShortenedUrlWithRelations
+  totalClicks: number
+  uniqueClicks: number
+  clicksByDate: Array<{ date: string; clicks: number }>
+  clicksByCountry: Array<{ country: string; clicks: number }>
+  clicksByDevice: Array<{ device: string; clicks: number }>
+  clicksByBrowser: Array<{ browser: string; clicks: number }>
+  recentClicks: Array<{
+    id: number
+    ip?: string
+    country?: string
+    device?: string
+    browser?: string
+    referer?: string
+    clickedAt: string
+  }>
+} | null> {
+  // Get the URL
+  const [url] = await db
+    .select()
+    .from(shortenedUrls)
+    .where(
+      and(
+        eq(shortenedUrls.id, id),
+        eq(shortenedUrls.userId, userId)
+      )
+    )
+    .limit(1)
+
+  if (!url) return null
+
+  // Get total clicks
+  const totalClicks = url.clicks || 0
+
+  // Get unique clicks (count distinct IPs)
+  const [uniqueResult] = await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${urlClicks.ip})` })
+    .from(urlClicks)
+    .where(eq(urlClicks.shortenedUrlId, id))
+
+  const uniqueClicks = uniqueResult?.count || 0
+
+  // Get clicks by date (last 30 days)
+  const clicksByDate = await db
+    .select({
+      date: sql<string>`DATE(${urlClicks.clickedAt})`.as('date'),
+      clicks: sql<number>`COUNT(*)`.as('clicks')
+    })
+    .from(urlClicks)
+    .where(
+      and(
+        eq(urlClicks.shortenedUrlId, id),
+        sql`${urlClicks.clickedAt} >= DATE('now', '-30 days')`
+      )
+    )
+    .groupBy(sql`DATE(${urlClicks.clickedAt})`)
+    .orderBy(sql`DATE(${urlClicks.clickedAt}) DESC`)
+
+  // Get clicks by country
+  const clicksByCountry = await db
+    .select({
+      country: urlClicks.country,
+      clicks: sql<number>`COUNT(*)`.as('clicks')
+    })
+    .from(urlClicks)
+    .where(
+      and(
+        eq(urlClicks.shortenedUrlId, id),
+        isNotNull(urlClicks.country)
+      )
+    )
+    .groupBy(urlClicks.country)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(10)
+
+  // Get clicks by device
+  const clicksByDevice = await db
+    .select({
+      device: urlClicks.device,
+      clicks: sql<number>`COUNT(*)`.as('clicks')
+    })
+    .from(urlClicks)
+    .where(
+      and(
+        eq(urlClicks.shortenedUrlId, id),
+        isNotNull(urlClicks.device)
+      )
+    )
+    .groupBy(urlClicks.device)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(5)
+
+  // Get clicks by browser
+  const clicksByBrowser = await db
+    .select({
+      browser: urlClicks.browser,
+      clicks: sql<number>`COUNT(*)`.as('clicks')
+    })
+    .from(urlClicks)
+    .where(
+      and(
+        eq(urlClicks.shortenedUrlId, id),
+        isNotNull(urlClicks.browser)
+      )
+    )
+    .groupBy(urlClicks.browser)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(5)
+
+  // Get recent clicks
+  const recentClicks = await db
+    .select({
+      id: urlClicks.id,
+      ip: urlClicks.ip,
+      country: urlClicks.country,
+      device: urlClicks.device,
+      browser: urlClicks.browser,
+      referer: urlClicks.referer,
+      clickedAt: urlClicks.clickedAt,
+    })
+    .from(urlClicks)
+    .where(eq(urlClicks.shortenedUrlId, id))
+    .orderBy(desc(urlClicks.clickedAt))
+    .limit(50)
+
+  return {
+    url: url as ShortenedUrlWithRelations,
+    totalClicks,
+    uniqueClicks,
+    clicksByDate: clicksByDate.map(row => ({
+      date: row.date || '',
+      clicks: row.clicks || 0
+    })),
+    clicksByCountry: clicksByCountry.map(row => ({
+      country: row.country || 'Unknown',
+      clicks: row.clicks || 0
+    })),
+    clicksByDevice: clicksByDevice.map(row => ({
+      device: row.device || 'Unknown',
+      clicks: row.clicks || 0
+    })),
+    clicksByBrowser: clicksByBrowser.map(row => ({
+      browser: row.browser || 'Unknown',
+      clicks: row.clicks || 0
+    })),
+    recentClicks: recentClicks.map(row => ({
+      id: row.id,
+      ip: row.ip || undefined,
+      country: row.country || undefined,
+      device: row.device || undefined,
+      browser: row.browser || undefined,
+      referer: row.referer || undefined,
+      clickedAt: row.clickedAt || ''
+    }))
+  }
 }
 
 export async function deleteShortenedUrl(id: number, userId: number): Promise<boolean> {

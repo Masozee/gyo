@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getInvoices, updateInvoiceStatus, type InvoiceWithRelations } from '@/lib/api/invoices';
+import { formatCurrency, defaultCurrencySettings } from '@/lib/format-currency';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -125,12 +126,9 @@ export default function InvoicesPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const formatCurrency = (amount?: number | null) => {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  const formatCurrencyAmount = (amount?: number | null) => {
+    if (!amount) return formatCurrency(0, defaultCurrencySettings);
+    return formatCurrency(amount, defaultCurrencySettings);
   };
 
   const getStatusInfo = (status: string) => {
@@ -190,7 +188,7 @@ export default function InvoicesPage() {
           <h1 className="text-3xl font-bold text-foreground">Invoices</h1>
           <p className="text-muted-foreground">Manage your project invoices and billing</p>
         </div>
-        <Button onClick={() => router.push('/invoices/new')} className="rounded-none">
+        <Button onClick={() => router.push('/admin/invoices/new')} className="rounded-none">
           <Plus className="h-4 w-4 mr-2" />
           New Invoice
         </Button>
@@ -211,7 +209,7 @@ export default function InvoicesPage() {
             <span className="text-sm text-muted-foreground">Revenue</span>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </div>
-          <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalAmount)}</div>
+          <div className="text-2xl font-bold text-green-600">{formatCurrencyAmount(stats.totalAmount)}</div>
         </div>
         
         <div className="bg-background border rounded-none p-4 space-y-2">
@@ -219,7 +217,7 @@ export default function InvoicesPage() {
             <span className="text-sm text-muted-foreground">Paid</span>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </div>
-          <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.paidAmount)}</div>
+          <div className="text-2xl font-bold text-green-600">{formatCurrencyAmount(stats.paidAmount)}</div>
         </div>
         
         <div className="bg-background border rounded-none p-4 space-y-2">
@@ -228,7 +226,7 @@ export default function InvoicesPage() {
             <AlertCircle className="h-4 w-4 text-orange-600" />
           </div>
           <div className="text-2xl font-bold text-orange-600">
-            {formatCurrency(stats.totalAmount - stats.paidAmount)}
+            {formatCurrencyAmount(stats.totalAmount - stats.paidAmount)}
           </div>
         </div>
       </div>
@@ -301,7 +299,7 @@ export default function InvoicesPage() {
               {searchTerm ? 'No invoices match your search criteria. Try adjusting your search terms.' : 'Get started by creating your first invoice to track your project billing.'}
             </p>
             {!searchTerm && (
-              <Button onClick={() => router.push('/invoices/new')} className="rounded-none">
+              <Button onClick={() => router.push('/admin/invoices/new')} className="rounded-none">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Invoice
               </Button>
@@ -368,7 +366,7 @@ export default function InvoicesPage() {
                       </TableCell>
                       
                       <TableCell className="py-6 text-right">
-                        <div className="text-xl font-bold">{formatCurrency(invoice.totalAmount)}</div>
+                        <div className="text-xl font-bold">{formatCurrencyAmount(invoice.totalAmount)}</div>
                       </TableCell>
                       
                       <TableCell className="py-6">
@@ -384,7 +382,7 @@ export default function InvoicesPage() {
                             variant="ghost" 
                             size="sm" 
                             className="h-8 w-8 p-0 rounded-none"
-                            onClick={() => router.push(`/invoices/${invoice.id}`)}
+                            onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -427,7 +425,7 @@ export default function InvoicesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="rounded-none">
-                              <DropdownMenuItem onClick={() => router.push(`/invoices/${invoice.id}/edit`)}>
+                              <DropdownMenuItem onClick={() => router.push(`/admin/invoices/${invoice.id}/edit`)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit Invoice
                               </DropdownMenuItem>

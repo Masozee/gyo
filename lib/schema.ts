@@ -91,7 +91,7 @@ export const tasks = sqliteTable('tasks', {
   tags: text('tags'), // JSON array of tags
   
   // Dependencies
-  parentTaskId: integer('parent_task_id').references((): any => tasks.id),
+  parentTaskId: integer('parent_task_id'),
   
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),

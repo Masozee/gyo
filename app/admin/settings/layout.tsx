@@ -32,6 +32,7 @@ export default function SettingsLayout({
     if (pathname.includes('/general')) return 'General'
     if (pathname.includes('/branding')) return 'Branding'
     if (pathname.includes('/integrations')) return 'Integrations'
+    if (pathname.includes('/financial')) return 'Financial & Invoices'
     if (pathname.includes('/security')) return 'Security'
     if (pathname.includes('/database')) return 'Database'
     if (pathname.includes('/email')) return 'Email'

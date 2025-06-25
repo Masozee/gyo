@@ -14,6 +14,7 @@ import {
   Database,
   Zap,
   User,
+  CreditCard,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -54,6 +55,12 @@ const settingsNavigation = [
     icon: User,
     href: "/admin/settings/about",
     description: "Personal information and biography",
+  },
+  {
+    title: "Financial & Invoices",
+    icon: CreditCard,
+    href: "/admin/settings/financial",
+    description: "Currency, tax settings, and bank details",
   },
   {
     title: "Security",
