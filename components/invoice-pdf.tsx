@@ -1,146 +1,156 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
-import type { InvoiceWithRelations } from '@/lib/api/invoices';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import type { InvoiceWithRelations } from '@/lib/api/invoices-server';
 
-// Define styles that match the invoice design
+// Define styles that match the invoice design exactly
 const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
     padding: 40,
     fontFamily: 'Helvetica',
+    fontSize: 11,
   },
   header: {
-    marginBottom: 30,
+    marginBottom: 40,
   },
   title: {
-    fontSize: 48,
-    color: '#4A5568',
+    fontSize: 64,
+    color: '#6B7280',
     textAlign: 'right',
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 30,
   },
   invoiceInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    marginBottom: 30,
+    fontSize: 11,
   },
   invoiceNumber: {
-    fontSize: 12,
-    color: '#4A5568',
-    fontWeight: 'bold',
+    fontSize: 11,
+    color: '#374151',
+    fontWeight: 'normal',
   },
   invoiceDate: {
-    fontSize: 12,
-    color: '#4A5568',
+    fontSize: 11,
+    color: '#374151',
+    textAlign: 'right',
   },
   customerSection: {
     marginBottom: 40,
   },
   customerLabel: {
-    fontSize: 12,
-    color: '#4A5568',
+    fontSize: 11,
+    color: '#374151',
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   customerName: {
-    fontSize: 12,
-    color: '#2D3748',
-    marginBottom: 20,
+    fontSize: 11,
+    color: '#374151',
+    marginBottom: 30,
   },
   table: {
-    marginBottom: 30,
+    marginBottom: 40,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#4A5568',
-    padding: 8,
+    backgroundColor: '#6B7280',
+    padding: 10,
   },
   tableHeaderText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 'bold',
     textAlign: 'center',
   },
   tableRow: {
     flexDirection: 'row',
-    backgroundColor: '#F7FAFC',
-    padding: 8,
+    backgroundColor: '#F9FAFB',
+    padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E5E7EB',
+    minHeight: 35,
   },
   tableRowEven: {
     flexDirection: 'row',
-    backgroundColor: '#EDF2F7',
-    padding: 8,
+    backgroundColor: '#F3F4F6',
+    padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#E5E7EB',
+    minHeight: 35,
   },
   tableCellText: {
-    fontSize: 10,
-    color: '#2D3748',
+    fontSize: 11,
+    color: '#374151',
     textAlign: 'center',
+    paddingTop: 5,
   },
   tableCellTextLeft: {
-    fontSize: 10,
-    color: '#2D3748',
+    fontSize: 11,
+    color: '#374151',
     textAlign: 'left',
+    paddingTop: 5,
   },
   tableCellTextRight: {
-    fontSize: 10,
-    color: '#2D3748',
+    fontSize: 11,
+    color: '#374151',
     textAlign: 'right',
+    paddingTop: 5,
   },
-  // Column widths
-  qtyCol: { width: '8%' },
-  itemCol: { width: '20%' },
-  descCol: { width: '32%' },
-  priceCol: { width: '15%' },
-  discountCol: { width: '12%' },
-  totalCol: { width: '13%' },
+  // Column widths matching the design
+  qtyCol: { width: '8%', justifyContent: 'center' },
+  itemCol: { width: '20%', justifyContent: 'center' },
+  descCol: { width: '32%', justifyContent: 'center' },
+  priceCol: { width: '15%', justifyContent: 'center' },
+  discountCol: { width: '12%', justifyContent: 'center' },
+  totalCol: { width: '13%', justifyContent: 'center' },
   
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 30,
+    marginTop: 40,
   },
   paymentInfo: {
     width: '60%',
-    fontSize: 10,
-    color: '#4A5568',
-    lineHeight: 1.4,
+    fontSize: 11,
+    color: '#374151',
+    lineHeight: 1.5,
   },
   totalSection: {
     width: '35%',
   },
   totalRow: {
     flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    padding: 8,
+    backgroundColor: '#F3F4F6',
+    padding: 12,
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   totalLabel: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#2D3748',
+    color: '#374151',
   },
   totalAmount: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#2D3748',
+    color: '#374151',
   },
   signature: {
-    marginTop: 60,
+    marginTop: 80,
     textAlign: 'right',
   },
   signatureText: {
-    fontSize: 12,
-    color: '#4A5568',
-    marginBottom: 40,
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 50,
   },
   signatureName: {
-    fontSize: 12,
-    color: '#2D3748',
+    fontSize: 11,
+    color: '#374151',
     fontWeight: 'bold',
   },
 });
@@ -172,17 +182,20 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-    }).format(amount).replace('IDR', 'Rp');
+    }).format(amount).replace('IDR', 'Rp ');
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const year = date.getFullYear();
+    return `Dec ${day}${day === 5 ? 'th' : 'th'}, ${year}`;
   };
+
+  // Ensure we have at least 4 rows total (including empty ones)
+  const lineItems = invoice.lineItems || [];
+  const emptyRowsNeeded = Math.max(0, 4 - lineItems.length);
 
   return (
     <Document>
@@ -198,16 +211,15 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
             Invoice No: {invoice.invoiceNumber}
           </Text>
           <Text style={styles.invoiceDate}>
-            Date: {formatDate(invoice.dateIssued)}
+            Date :{formatDate(invoice.dateIssued)}
           </Text>
         </View>
 
         {/* Customer Information */}
         <View style={styles.customerSection}>
-          <Text style={styles.customerLabel}>Customer:</Text>
+          <Text style={styles.customerLabel}>Customer :</Text>
           <Text style={styles.customerName}>
-            {invoice.client?.name}
-            {invoice.client?.company && ` - ${invoice.client.company}`}
+            {invoice.client?.name || 'No client specified'}
           </Text>
         </View>
 
@@ -235,35 +247,35 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
             </View>
           </View>
 
-          {/* Table Rows */}
-          {invoice.lineItems?.map((item, index) => (
+          {/* Actual line items */}
+          {lineItems.map((item, index) => (
             <View key={index} style={index % 2 === 0 ? styles.tableRow : styles.tableRowEven}>
               <View style={styles.qtyCol}>
-                <Text style={styles.tableCellText}>{item.quantity}</Text>
+                <Text style={styles.tableCellText}>{item.quantity || 1}</Text>
               </View>
               <View style={styles.itemCol}>
                 <Text style={styles.tableCellText}>
-                  {item.description.split(' ').slice(0, 2).join(' ')}
+                  {item.description?.split(' ').slice(0, 2).join(' ') || 'Item'}
                 </Text>
               </View>
               <View style={styles.descCol}>
-                <Text style={styles.tableCellTextLeft}>{item.description}</Text>
+                <Text style={styles.tableCellTextLeft}>{item.description || 'No description'}</Text>
               </View>
               <View style={styles.priceCol}>
-                <Text style={styles.tableCellTextRight}>{formatCurrency(item.unitPrice)}</Text>
+                <Text style={styles.tableCellTextRight}>{formatCurrency(item.unitPrice || 0)}</Text>
               </View>
               <View style={styles.discountCol}>
                 <Text style={styles.tableCellText}>-</Text>
               </View>
               <View style={styles.totalCol}>
-                <Text style={styles.tableCellTextRight}>{formatCurrency(item.totalPrice)}</Text>
+                <Text style={styles.tableCellTextRight}>{formatCurrency(item.totalPrice || (item.quantity || 1) * (item.unitPrice || 0))}</Text>
               </View>
             </View>
           ))}
 
-          {/* Empty rows to match the design */}
-          {Array.from({ length: Math.max(0, 4 - (invoice.lineItems?.length || 0)) }).map((_, index) => (
-            <View key={`empty-${index}`} style={index % 2 === (invoice.lineItems?.length || 0) % 2 ? styles.tableRowEven : styles.tableRow}>
+          {/* Empty rows to fill the table */}
+          {Array.from({ length: emptyRowsNeeded }).map((_, index) => (
+            <View key={`empty-${index}`} style={(lineItems.length + index) % 2 === 0 ? styles.tableRow : styles.tableRowEven}>
               <View style={styles.qtyCol}>
                 <Text style={styles.tableCellText}>-</Text>
               </View>
@@ -292,7 +304,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({
             <Text>Payment can be made via Bank Transfer payable to:</Text>
             <Text>{companyInfo.accountHolder}</Text>
             <Text>Bank: {companyInfo.bankName}</Text>
-            <Text>Account No: {companyInfo.accountNumber}</Text>
+            <Text>Account No : {companyInfo.accountNumber}</Text>
           </View>
           
           <View style={styles.totalSection}>

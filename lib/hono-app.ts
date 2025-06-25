@@ -3,82 +3,30 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { HTTPException } from 'hono/http-exception'
 
+
+
 // Import server-side functions
+import { getInvoicesServer, getInvoiceByIdServer, createInvoiceServer, updateInvoiceServer, deleteInvoiceServer } from './api/invoices-server'
 import { 
-  getProjectsServer, 
-  getProjectByIdServer, 
-  createProjectServer, 
-  updateProjectServer, 
-  deleteProjectServer,
-  updateProjectProgressServer,
-  getProjectStatsServer
-} from './api/projects-server'
-
-import { 
-  getTasksServer, 
-  getTaskByIdServer, 
-  createTaskServer, 
-  updateTaskServer, 
-  deleteTaskServer
-} from './api/tasks-server'
-
-import { 
-  getExpensesServer, 
-  getExpenseByIdServer, 
-  createExpenseServer, 
-  updateExpenseServer, 
-  deleteExpenseServer,
-  getExpenseTotalsByProjectServer,
-  getExpenseStatsServer
-} from './api/expenses-server'
-
-import { 
-  getDocumentsServer, 
-  getDocumentByIdServer, 
-  createDocumentServer, 
-  updateDocumentServer, 
-  deleteDocumentServer
-} from './api/documents-server'
-
-import { 
-  getInvoicesServer, 
-  getInvoiceByIdServer, 
-  createInvoiceServer, 
-  updateInvoiceServer, 
-  deleteInvoiceServer
-} from './api/invoices-server'
-
-import { 
-  getClientsServer, 
-  getActiveClientsServer, 
-  getClientByIdServer, 
-  createClientServer, 
-  updateClientServer, 
-  deleteClientServer,
-  toggleClientStatusServer,
-  getClientsCountServer
-} from './api/clients-server'
-
-import {
-  getBlogCategoriesServer,
-  createBlogCategoryServer,
-  getBlogPostsServer,
-  getBlogPostByIdServer,
-  getBlogPostBySlugServer,
-  createBlogPostServer,
-  updateBlogPostServer,
-  deleteBlogPostServer,
-  getPagesServer,
-  getPageBySlugServer,
-  createPageServer,
-  updatePageServer,
-  deletePageServer,
-  getPortfolioItemsServer,
-  getPortfolioItemByIdServer,
-  createPortfolioItemServer,
-  updatePortfolioItemServer,
-  deletePortfolioItemServer
-} from './api/cms-server'
+  createShortenedUrl, 
+  getShortenedUrls, 
+  deleteShortenedUrl, 
+  createQrCode, 
+  getQrCodes, 
+  deleteQrCode, 
+  createSigningRequest, 
+  getSigningRequests,
+  getSigningRequestByToken,
+  signDocument,
+  handleUrlRedirect 
+} from './api/tools-server'
+import { getClientsServer, getActiveClientsServer, getClientByIdServer, createClientServer, updateClientServer, deleteClientServer, toggleClientStatusServer } from './api/clients-server'
+import { getProjectsServer, getProjectByIdServer, createProjectServer, updateProjectServer, deleteProjectServer, updateProjectProgressServer, getProjectStatsServer } from './api/projects-server'
+import { getTasksServer, getTaskByIdServer, createTaskServer, updateTaskServer, deleteTaskServer } from './api/tasks-server'
+import { getExpensesServer, getExpenseByIdServer, createExpenseServer, updateExpenseServer, deleteExpenseServer } from './api/expenses-server'
+import { getDocumentsServer, getDocumentByIdServer, createDocumentServer, updateDocumentServer, deleteDocumentServer } from './api/documents-server'
+import { getPagesServer, getPageBySlugServer, createPageServer, updatePageServer, deletePageServer } from './api/cms-server'
+import { getBlogPostsServer, getBlogPostByIdServer, getBlogPostBySlugServer, createBlogPostServer, updateBlogPostServer, deleteBlogPostServer, getBlogCategoriesServer, createBlogCategoryServer, getPortfolioItemsServer, getPortfolioItemByIdServer, createPortfolioItemServer, updatePortfolioItemServer, deletePortfolioItemServer } from './api/cms-server'
 
 // Import auth functions
 import { 
@@ -695,96 +643,234 @@ app.get('/invoices/:id/pdf', async (c) => {
       throw new HTTPException(404, { message: 'Invoice not found' })
     }
 
-    // Generate a simple PDF content for now
-    const pdfContent = `
-%PDF-1.4
-1 0 obj
-<<
-/Type /Catalog
-/Pages 2 0 R
->>
-endobj
-
-2 0 obj
-<<
-/Type /Pages
-/Kids [3 0 R]
-/Count 1
->>
-endobj
-
-3 0 obj
-<<
-/Type /Page
-/Parent 2 0 R
-/MediaBox [0 0 612 792]
-/Contents 4 0 R
-/Resources <<
-/Font <<
-/F1 5 0 R
->>
->>
->>
-endobj
-
-4 0 obj
-<<
-/Length 200
->>
-stream
-BT
-/F1 24 Tf
-50 700 Td
-(Invoice ${invoice.invoiceNumber}) Tj
-0 -50 Td
-/F1 12 Tf
-(Client: ${invoice.client?.name || 'Unknown'}) Tj
-0 -20 Td
-(Project: ${invoice.project?.title || 'Unknown'}) Tj
-0 -20 Td
-(Amount: $${invoice.totalAmount}) Tj
-0 -20 Td
-(Status: ${invoice.status}) Tj
-0 -20 Td
-(Date: ${invoice.dateIssued}) Tj
-ET
-endstream
-endobj
-
-5 0 obj
-<<
-/Type /Font
-/Subtype /Type1
-/BaseFont /Helvetica
->>
-endobj
-
-xref
-0 6
-0000000000 65535 f 
-0000000010 00000 n 
-0000000053 00000 n 
-0000000110 00000 n 
-0000000251 00000 n 
-0000000501 00000 n 
-trailer
-<<
-/Size 6
-/Root 1 0 R
->>
-startxref
-569
-%%EOF`
-
-    // Set headers for PDF download
-    c.header('Content-Type', 'application/pdf')
-    c.header('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`)
-    
-    return c.body(pdfContent)
+    // For now, return a simple message that PDF generation is not yet implemented
+    // This will be replaced with proper PDF generation later
+    throw new HTTPException(501, { message: 'PDF generation is currently being implemented' })
   } catch (error) {
     console.error('Error in invoice PDF endpoint:', error)
     if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to process invoice PDF request' })
+  }
+})
+
+// Add debug endpoint to check HTML content
+app.get('/invoices/:id/html', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid invoice ID' })
+    }
+
+    const invoice = await getInvoiceByIdServer(id)
+    
+    if (!invoice) {
+      throw new HTTPException(404, { message: 'Invoice not found' })
+    }
+
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount).replace('IDR', 'Rp ');
+    };
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice ${invoice.invoiceNumber}</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            color: #374151; 
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .header { text-align: right; margin-bottom: 40px; }
+        .title { 
+            font-size: 48px; 
+            color: #6B7280; 
+            font-weight: bold; 
+            margin-bottom: 30px; 
+        }
+        .invoice-info { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 30px; 
+            font-size: 12px;
+        }
+        .invoice-number { font-weight: normal; }
+        .invoice-date { text-align: right; }
+        .customer-section { margin-bottom: 40px; }
+        .customer-label { 
+            font-weight: bold; 
+            color: #374151; 
+            margin-bottom: 8px; 
+        }
+        .customer-name { 
+            color: #374151; 
+            margin-bottom: 30px; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 40px; 
+        }
+        th { 
+            background-color: #6B7280; 
+            color: white; 
+            padding: 10px; 
+            text-align: center; 
+            font-size: 12px; 
+            font-weight: bold;
+        }
+        td { 
+            padding: 10px; 
+            text-align: center; 
+            font-size: 12px; 
+            border-bottom: 1px solid #E5E7EB; 
+            min-height: 35px;
+            vertical-align: middle;
+        }
+        tr:nth-child(even) { background-color: #F3F4F6; }
+        tr:nth-child(odd) { background-color: #F9FAFB; }
+        .footer { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-top: 40px; 
+        }
+        .payment-info { 
+            width: 60%; 
+            font-size: 12px; 
+            color: #374151; 
+            line-height: 1.5; 
+        }
+        .total-section { width: 35%; }
+        .total-row { 
+            background-color: #F3F4F6; 
+            padding: 12px; 
+            display: flex; 
+            justify-content: space-between; 
+            border: 1px solid #E5E7EB;
+        }
+        .total-label, .total-amount { 
+            font-weight: bold; 
+            color: #374151; 
+            font-size: 14px;
+        }
+        .signature { 
+            margin-top: 80px; 
+            text-align: right; 
+        }
+        .signature-text { 
+            color: #6B7280; 
+            margin-bottom: 50px; 
+            font-size: 12px;
+        }
+        .signature-name { 
+            font-weight: bold; 
+            color: #374151; 
+            font-size: 12px;
+        }
+        .item-cell {
+            white-space: pre-line;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Invoice</div>
+    </div>
+    
+    <div class="invoice-info">
+        <div class="invoice-number">Invoice No: ${invoice.invoiceNumber}</div>
+        <div class="invoice-date">Date: Dec 5th, 2023</div>
+    </div>
+    
+    <div class="customer-section">
+        <div class="customer-label">Customer:</div>
+        <div class="customer-name">Pusat Penelitian HIV Unika Atma Jaya</div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 8%">Qty</th>
+                <th style="width: 20%">Item #</th>
+                <th style="width: 32%">Description</th>
+                <th style="width: 15%">Unit Price</th>
+                <th style="width: 12%">Discount</th>
+                <th style="width: 13%">Line Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1.</td>
+                <td class="item-cell">Website CLM<br>Jarnas</td>
+                <td style="text-align: left">Peluncuran Website CLM Jarnas</td>
+                <td style="text-align: right">${formatCurrency(8350000)}</td>
+                <td>-</td>
+                <td style="text-align: right">${formatCurrency(8350000)}</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <div class="payment-info">
+            Payment can be made via Bank Transfer payable to:<br>
+            Nuroji Lukman Syah<br>
+            Bank: BCA<br>
+            Account No: 7650543704
+        </div>
+        <div class="total-section">
+            <div class="total-row">
+                <span class="total-label">Total</span>
+                <span class="total-amount">${formatCurrency(8350000)}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="signature">
+        <div class="signature-text">Best Regards,</div>
+        <div class="signature-name">Nuroji Lukman Syah</div>
+    </div>
+</body>
+</html>`;
+
+    return c.html(htmlContent)
+  } catch (error) {
+    console.error('Error in invoice HTML endpoint:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to process invoice HTML request' })
   }
 })
 
@@ -889,6 +975,266 @@ app.patch('/clients/:id/toggle-status', async (c) => {
   } catch (error) {
     console.error('Error toggling client status:', error)
     throw new HTTPException(500, { message: 'Failed to toggle client status' })
+  }
+})
+
+// TOOLS ROUTES
+
+// ─── URL Shortener ───
+app.get('/tools/urls', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const urls = await getShortenedUrls(userId)
+    return c.json(urls)
+  } catch (error) {
+    console.error('Error fetching shortened URLs:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch shortened URLs' })
+  }
+})
+
+app.post('/tools/urls', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const data = await c.req.json()
+    
+    if (!data.originalUrl) {
+      throw new HTTPException(400, { message: 'Original URL is required' })
+    }
+
+    const url = await createShortenedUrl({
+      userId,
+      originalUrl: data.originalUrl,
+      customAlias: data.customAlias,
+      description: data.description,
+      expiresAt: data.expiresAt,
+    })
+    
+    return c.json(url, 201)
+  } catch (error: any) {
+    console.error('Error creating shortened URL:', error)
+    if (error.message?.includes('already exists')) {
+      throw new HTTPException(400, { message: error.message })
+    }
+    throw new HTTPException(500, { message: 'Failed to create shortened URL' })
+  }
+})
+
+app.delete('/tools/urls/:id', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const id = parseInt(c.req.param('id'))
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid URL ID' })
+    }
+
+    const deleted = await deleteShortenedUrl(id, userId)
+    if (!deleted) {
+      throw new HTTPException(404, { message: 'Shortened URL not found' })
+    }
+    
+    return c.json({ message: 'Shortened URL deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting shortened URL:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to delete shortened URL' })
+  }
+})
+
+// URL redirect endpoint
+app.get('/s/:shortCode', async (c) => {
+  try {
+    const shortCode = c.req.param('shortCode')
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown'
+    const userAgent = c.req.header('user-agent') || ''
+    const referer = c.req.header('referer') || ''
+
+    const originalUrl = await handleUrlRedirect(shortCode, {
+      ip,
+      userAgent,
+      referer,
+    })
+
+    if (!originalUrl) {
+      throw new HTTPException(404, { message: 'Short URL not found or expired' })
+    }
+
+    return c.redirect(originalUrl, 302)
+  } catch (error) {
+    console.error('Error handling URL redirect:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to redirect URL' })
+  }
+})
+
+// ─── QR Codes ───
+app.get('/tools/qr-codes', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const qrCodes = await getQrCodes(userId)
+    return c.json(qrCodes)
+  } catch (error) {
+    console.error('Error fetching QR codes:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch QR codes' })
+  }
+})
+
+app.post('/tools/qr-codes', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const data = await c.req.json()
+    
+    if (!data.name || !data.type || !data.data) {
+      throw new HTTPException(400, { message: 'Name, type, and data are required' })
+    }
+
+    const qrCode = await createQrCode({
+      userId,
+      name: data.name,
+      type: data.type,
+      data: data.data,
+      size: data.size,
+      foregroundColor: data.foregroundColor,
+      backgroundColor: data.backgroundColor,
+      errorCorrectionLevel: data.errorCorrectionLevel,
+      format: data.format,
+      shortenedUrlId: data.shortenedUrlId,
+    })
+    
+    return c.json(qrCode, 201)
+  } catch (error) {
+    console.error('Error creating QR code:', error)
+    throw new HTTPException(500, { message: 'Failed to create QR code' })
+  }
+})
+
+app.delete('/tools/qr-codes/:id', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const id = parseInt(c.req.param('id'))
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid QR code ID' })
+    }
+
+    const deleted = await deleteQrCode(id, userId)
+    if (!deleted) {
+      throw new HTTPException(404, { message: 'QR code not found' })
+    }
+    
+    return c.json({ message: 'QR code deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting QR code:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to delete QR code' })
+  }
+})
+
+// ─── Document Signing ───
+app.get('/tools/signing-requests', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const requests = await getSigningRequests(userId)
+    return c.json(requests)
+  } catch (error) {
+    console.error('Error fetching signing requests:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch signing requests' })
+  }
+})
+
+app.post('/tools/signing-requests', async (c) => {
+  try {
+    // TODO: Get user ID from authentication
+    const userId = 1 // Placeholder
+    const data = await c.req.json()
+    
+    if (!data.documentName || !data.documentUrl || !data.title || !data.expiresAt || !data.signers?.length) {
+      throw new HTTPException(400, { message: 'Required fields missing' })
+    }
+
+    const request = await createSigningRequest({
+      userId,
+      documentName: data.documentName,
+      documentUrl: data.documentUrl,
+      documentSize: data.documentSize,
+      documentType: data.documentType,
+      title: data.title,
+      message: data.message,
+      expiresAt: data.expiresAt,
+      signers: data.signers,
+    })
+    
+    return c.json(request, 201)
+  } catch (error) {
+    console.error('Error creating signing request:', error)
+    throw new HTTPException(500, { message: 'Failed to create signing request' })
+  }
+})
+
+// Public signing endpoint
+app.get('/sign/:token', async (c) => {
+  try {
+    const accessToken = c.req.param('token')
+    const result = await getSigningRequestByToken(accessToken)
+    
+    if (!result) {
+      throw new HTTPException(404, { message: 'Signing request not found or expired' })
+    }
+
+    // Return signing page data (in a real app, this might render an HTML page)
+    return c.json({
+      request: result.request,
+      signer: {
+        id: result.signer.id,
+        name: result.signer.name,
+        email: result.signer.email,
+        role: result.signer.role,
+        status: result.signer.status,
+      }
+    })
+  } catch (error) {
+    console.error('Error fetching signing request:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch signing request' })
+  }
+})
+
+app.post('/sign/:token', async (c) => {
+  try {
+    const accessToken = c.req.param('token')
+    const data = await c.req.json()
+    
+    if (!data.signatureData || !data.signatureType) {
+      throw new HTTPException(400, { message: 'Signature data and type are required' })
+    }
+
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown'
+    const userAgent = c.req.header('user-agent') || ''
+
+    const success = await signDocument({
+      accessToken,
+      signatureData: data.signatureData,
+      signatureType: data.signatureType,
+      ipAddress: ip,
+      userAgent,
+    })
+
+    if (!success) {
+      throw new HTTPException(400, { message: 'Unable to sign document' })
+    }
+    
+    return c.json({ message: 'Document signed successfully' })
+  } catch (error) {
+    console.error('Error signing document:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to sign document' })
   }
 })
 

@@ -1,6 +1,6 @@
 import { eq, like, or, desc, and } from 'drizzle-orm';
 import { db } from '../db';
-import { invoices, projects, clients, type Invoice, type NewInvoice } from '../schema';
+import { invoices, projects, clients, type Invoice, type NewInvoice, invoiceLineItems } from '../schema';
 
 export interface InvoiceWithRelations extends Invoice {
   project?: {
@@ -10,9 +10,16 @@ export interface InvoiceWithRelations extends Invoice {
   client?: {
     id: number;
     name: string;
-    company?: string | null;
     email: string | null;
   };
+  lineItems?: {
+    id: number;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    order: number;
+  }[];
 }
 
 // Get all invoices with optional filters (SERVER-SIDE)
@@ -81,10 +88,24 @@ export async function getInvoiceByIdServer(id: number): Promise<InvoiceWithRelat
 
   if (!result) return null;
 
+  // Get line items separately
+  const lineItems = await db.select()
+    .from(invoiceLineItems)
+    .where(eq(invoiceLineItems.invoiceId, id))
+    .orderBy(invoiceLineItems.order);
+
   return {
     ...result.invoice,
     project: result.project || undefined,
     client: result.client || undefined,
+    lineItems: lineItems.map(item => ({
+      id: item.id,
+      description: item.description,
+      quantity: item.quantity || 1,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+      order: item.order || 0,
+    })),
   } as InvoiceWithRelations;
 }
 

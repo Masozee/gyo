@@ -29,6 +29,8 @@ import {
   CircleHelp,
   LucideMessageCircleQuestion,
   Mail,
+  Wrench,
+  Package,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -148,6 +150,11 @@ const data = {
           url: "/admin/mail/trash",
         },
       ],
+    },
+    {
+      title: "Tools",
+      url: "/admin/tools",
+      icon: Package,
     },
   ],
   navWeb: [

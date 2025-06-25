@@ -1109,4 +1109,279 @@ export type DailyStat = typeof dailyStats.$inferSelect;
 export type NewDailyStat = typeof dailyStats.$inferInsert;
 
 export type ActiveVisitor = typeof activeVisitors.$inferSelect;
-export type NewActiveVisitor = typeof activeVisitors.$inferInsert; 
+export type NewActiveVisitor = typeof activeVisitors.$inferInsert;
+
+// ─── Tools Tables ───
+
+// ─── URL Shortener ───
+export const shortenedUrls = sqliteTable('shortened_urls', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  originalUrl: text('original_url').notNull(),
+  shortCode: text('short_code').notNull().unique(),
+  customAlias: text('custom_alias').unique(),
+  description: text('description'),
+  
+  // Analytics
+  clicks: integer('clicks').default(0),
+  uniqueClicks: integer('unique_clicks').default(0),
+  lastClickedAt: text('last_clicked_at'),
+  
+  // Settings
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  expiresAt: text('expires_at'),
+  password: text('password'), // Optional password protection
+  
+  // QR Code integration
+  qrCodeUrl: text('qr_code_url'),
+  
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── URL Click Tracking ───
+export const urlClicks = sqliteTable('url_clicks', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  shortenedUrlId: integer('shortened_url_id').notNull().references(() => shortenedUrls.id),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  referer: text('referer'),
+  country: text('country'),
+  city: text('city'),
+  device: text('device'),
+  browser: text('browser'),
+  os: text('os'),
+  clickedAt: text('clicked_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── QR Codes ───
+export const qrCodes = sqliteTable('qr_codes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  type: text('type').notNull(), // url, text, wifi, contact, email, phone, sms, location
+  data: text('data').notNull(), // The actual data encoded in QR
+  
+  // Visual settings
+  size: integer('size').default(256),
+  foregroundColor: text('foreground_color').default('#000000'),
+  backgroundColor: text('background_color').default('#ffffff'),
+  errorCorrectionLevel: text('error_correction_level').default('M'), // L, M, Q, H
+  
+  // File info
+  qrCodeUrl: text('qr_code_url').notNull(),
+  format: text('format').default('png'), // png, svg, pdf
+  
+  // Analytics
+  scans: integer('scans').default(0),
+  lastScannedAt: text('last_scanned_at'),
+  
+  // Associated with URL shortener
+  shortenedUrlId: integer('shortened_url_id').references(() => shortenedUrls.id),
+  
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── QR Code Scans ───
+export const qrCodeScans = sqliteTable('qr_code_scans', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  qrCodeId: integer('qr_code_id').notNull().references(() => qrCodes.id),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  country: text('country'),
+  city: text('city'),
+  device: text('device'),
+  browser: text('browser'),
+  os: text('os'),
+  scannedAt: text('scanned_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── Document Signing ───
+export const signingRequests = sqliteTable('signing_requests', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  
+  // Document info
+  documentName: text('document_name').notNull(),
+  documentUrl: text('document_url').notNull(),
+  documentSize: integer('document_size'),
+  documentType: text('document_type'),
+  
+  // Request details
+  title: text('title').notNull(),
+  message: text('message'),
+  status: text('status').default('draft'), // draft, sent, partially_signed, signed, expired, declined, cancelled
+  
+  // Signing settings
+  expiresAt: text('expires_at').notNull(),
+  reminderEnabled: integer('reminder_enabled', { mode: 'boolean' }).default(true),
+  reminderDays: integer('reminder_days').default(3),
+  
+  // Workflow
+  signingOrder: text('signing_order').default('parallel'), // parallel, sequential
+  requiresAllSignatures: integer('requires_all_signatures', { mode: 'boolean' }).default(true),
+  
+  // Tracking
+  sentAt: text('sent_at'),
+  completedAt: text('completed_at'),
+  
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── Document Signers ───
+export const documentSigners = sqliteTable('document_signers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  signingRequestId: integer('signing_request_id').notNull().references(() => signingRequests.id),
+  
+  // Signer info
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  role: text('role').default('Signer'),
+  
+  // Signing details
+  status: text('status').default('pending'), // pending, signed, declined, expired
+  signedAt: text('signed_at'),
+  declinedAt: text('declined_at'),
+  declineReason: text('decline_reason'),
+  
+  // Digital signature
+  signatureData: text('signature_data'), // Base64 signature image
+  signatureType: text('signature_type'), // drawn, typed, uploaded
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  
+  // Access control
+  accessToken: text('access_token').notNull().unique(),
+  accessedAt: text('accessed_at'),
+  accessCount: integer('access_count').default(0),
+  
+  // Order for sequential signing
+  signingOrder: integer('signing_order').default(1),
+  
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── Signing Events ───
+export const signingEvents = sqliteTable('signing_events', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  signingRequestId: integer('signing_request_id').notNull().references(() => signingRequests.id),
+  signerId: integer('signer_id').references(() => documentSigners.id),
+  
+  eventType: text('event_type').notNull(), // created, sent, viewed, signed, declined, expired, reminded
+  eventData: text('event_data'), // JSON data for the event
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// ─── Tools Relations ───
+export const shortenedUrlsRelations = relations(shortenedUrls, ({ one, many }) => ({
+  user: one(users, {
+    fields: [shortenedUrls.userId],
+    references: [users.id],
+  }),
+  clicks: many(urlClicks),
+  qrCode: one(qrCodes, {
+    fields: [shortenedUrls.id],
+    references: [qrCodes.shortenedUrlId],
+  }),
+}));
+
+export const urlClicksRelations = relations(urlClicks, ({ one }) => ({
+  shortenedUrl: one(shortenedUrls, {
+    fields: [urlClicks.shortenedUrlId],
+    references: [shortenedUrls.id],
+  }),
+}));
+
+export const qrCodesRelations = relations(qrCodes, ({ one, many }) => ({
+  user: one(users, {
+    fields: [qrCodes.userId],
+    references: [users.id],
+  }),
+  shortenedUrl: one(shortenedUrls, {
+    fields: [qrCodes.shortenedUrlId],
+    references: [shortenedUrls.id],
+  }),
+  scans: many(qrCodeScans),
+}));
+
+export const qrCodeScansRelations = relations(qrCodeScans, ({ one }) => ({
+  qrCode: one(qrCodes, {
+    fields: [qrCodeScans.qrCodeId],
+    references: [qrCodes.id],
+  }),
+}));
+
+export const signingRequestsRelations = relations(signingRequests, ({ one, many }) => ({
+  user: one(users, {
+    fields: [signingRequests.userId],
+    references: [users.id],
+  }),
+  signers: many(documentSigners),
+  events: many(signingEvents),
+}));
+
+export const documentSignersRelations = relations(documentSigners, ({ one, many }) => ({
+  signingRequest: one(signingRequests, {
+    fields: [documentSigners.signingRequestId],
+    references: [signingRequests.id],
+  }),
+  events: many(signingEvents),
+}));
+
+export const signingEventsRelations = relations(signingEvents, ({ one }) => ({
+  signingRequest: one(signingRequests, {
+    fields: [signingEvents.signingRequestId],
+    references: [signingRequests.id],
+  }),
+  signer: one(documentSigners, {
+    fields: [signingEvents.signerId],
+    references: [documentSigners.id],
+  }),
+}));
+
+// ─── Tools Types ───
+export type ShortenedUrl = typeof shortenedUrls.$inferSelect;
+export type NewShortenedUrl = typeof shortenedUrls.$inferInsert;
+
+export type UrlClick = typeof urlClicks.$inferSelect;
+export type NewUrlClick = typeof urlClicks.$inferInsert;
+
+export type QrCode = typeof qrCodes.$inferSelect;
+export type NewQrCode = typeof qrCodes.$inferInsert;
+
+export type QrCodeScan = typeof qrCodeScans.$inferSelect;
+export type NewQrCodeScan = typeof qrCodeScans.$inferInsert;
+
+export type SigningRequest = typeof signingRequests.$inferSelect;
+export type NewSigningRequest = typeof signingRequests.$inferInsert;
+
+export type DocumentSigner = typeof documentSigners.$inferSelect;
+export type NewDocumentSigner = typeof documentSigners.$inferInsert;
+
+export type SigningEvent = typeof signingEvents.$inferSelect;
+export type NewSigningEvent = typeof signingEvents.$inferInsert;
+
+// ─── Extended Tools Types ───
+export type ShortenedUrlWithRelations = ShortenedUrl & {
+  user?: User;
+  clicks?: UrlClick[];
+  qrCode?: QrCode;
+};
+
+export type QrCodeWithRelations = QrCode & {
+  user?: User;
+  shortenedUrl?: ShortenedUrl;
+  scans?: QrCodeScan[];
+};
+
+export type SigningRequestWithRelations = SigningRequest & {
+  user?: User;
+  signers?: DocumentSigner[];
+  events?: SigningEvent[];
+}; 
