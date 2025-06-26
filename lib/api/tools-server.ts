@@ -55,7 +55,7 @@ export async function createShortenedUrl(data: {
       shortCode,
       customAlias: data.customAlias || null,
       description: data.description || null,
-      expiresAt: data.expiresAt || null,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
     }
 
     const [result] = await db.insert(shortenedUrls).values(newUrl).returning()
@@ -88,7 +88,6 @@ export async function getShortenedUrls(userId: number): Promise<ShortenedUrlWith
     .from(shortenedUrls)
     .where(eq(shortenedUrls.userId, userId))
     .orderBy(desc(shortenedUrls.createdAt))
-    .all()
 
   return results as ShortenedUrlWithRelations[]
 }
@@ -171,8 +170,8 @@ export async function trackUrlClick(data: {
     .update(shortenedUrls)
     .set({
       clicks: sql`${shortenedUrls.clicks} + 1`,
-      lastClickedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      lastClickedAt: new Date(),
+      updatedAt: new Date(),
     })
     .where(eq(shortenedUrls.id, data.shortenedUrlId))
 }
@@ -330,7 +329,7 @@ export async function getUrlAnalytics(id: number, userId: number): Promise<{
       device: row.device || undefined,
       browser: row.browser || undefined,
       referer: row.referer || undefined,
-      clickedAt: row.clickedAt || ''
+      clickedAt: row.clickedAt ? (row.clickedAt instanceof Date ? row.clickedAt.toISOString() : row.clickedAt) : ''
     }))
   }
 }
@@ -394,7 +393,7 @@ export async function getQrCodes(userId: number): Promise<QrCodeWithRelations[]>
     .from(qrCodes)
     .where(eq(qrCodes.userId, userId))
     .orderBy(desc(qrCodes.createdAt))
-    .all()
+    
 
   return results as QrCodeWithRelations[]
 }
@@ -428,8 +427,8 @@ export async function trackQrCodeScan(data: {
     .update(qrCodes)
     .set({
       scans: sql`${qrCodes.scans} + 1`,
-      lastScannedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      lastScannedAt: new Date(),
+      updatedAt: new Date(),
     })
     .where(eq(qrCodes.id, data.qrCodeId))
 }
@@ -479,7 +478,7 @@ export async function createSigningRequest(data: {
     documentType: data.documentType,
     title: data.title,
     message: data.message,
-    expiresAt: data.expiresAt,
+    expiresAt: new Date(data.expiresAt),
   }
 
   const [request] = await db.insert(signingRequests).values(newRequest).returning()
@@ -520,7 +519,7 @@ export async function getSigningRequests(userId: number): Promise<SigningRequest
     .from(signingRequests)
     .where(eq(signingRequests.userId, userId))
     .orderBy(desc(signingRequests.createdAt))
-    .all()
+    
 
   // Get signers for each request
   const requestsWithSigners = await Promise.all(
@@ -529,7 +528,7 @@ export async function getSigningRequests(userId: number): Promise<SigningRequest
         .select()
         .from(documentSigners)
         .where(eq(documentSigners.signingRequestId, request.id))
-        .all()
+        
       
       return {
         ...request,
@@ -565,7 +564,7 @@ export async function getSigningRequestByToken(accessToken: string): Promise<{
   await db
     .update(documentSigners)
     .set({
-      accessedAt: new Date().toISOString(),
+      accessedAt: new Date(),
       accessCount: sql`${documentSigners.accessCount} + 1`,
     })
     .where(eq(documentSigners.id, signer.id))
@@ -606,7 +605,7 @@ export async function signDocument(data: {
     .update(documentSigners)
     .set({
       status: 'signed',
-      signedAt: new Date().toISOString(),
+      signedAt: new Date(),
       signatureData: data.signatureData,
       signatureType: data.signatureType,
       ipAddress: data.ipAddress,
@@ -629,7 +628,7 @@ export async function signDocument(data: {
     .select()
     .from(documentSigners)
     .where(eq(documentSigners.signingRequestId, signer.signingRequestId))
-    .all()
+    
 
   const allSigned = allSigners.every(s => s.status === 'signed')
   
@@ -639,7 +638,7 @@ export async function signDocument(data: {
       .update(signingRequests)
       .set({
         status: 'signed',
-        completedAt: new Date().toISOString(),
+        completedAt: new Date(),
       })
       .where(eq(signingRequests.id, signer.signingRequestId))
 
@@ -824,7 +823,7 @@ export async function downloadYouTubeVideo(url: string, itag: string, type: 'vid
     // Create download stream
     const options = {
       quality: itag,
-      filter: type === 'audio' ? 'audioonly' : 'videoandaudio'
+      filter: type === 'audio' ? 'audioonly' as const : 'videoandaudio' as const
     }
     
     const stream = ytdl(url, options)

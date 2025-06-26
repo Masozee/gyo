@@ -72,8 +72,8 @@ export async function createProject(projectData: NewProject): Promise<Project> {
   const [project] = await db.insert(projects)
     .values({
       ...projectData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -85,7 +85,7 @@ export async function updateProject(id: number, projectData: Partial<NewProject>
   const [updatedProject] = await db.update(projects)
     .set({
       ...projectData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(projects.id, id))
     .returning();
@@ -135,8 +135,8 @@ export async function updateProjectProgress(id: number, progressPercentage: numb
   const [updatedProject] = await db.update(projects)
     .set({
       progressPercentage,
-      updatedAt: new Date().toISOString(),
-      ...(progressPercentage === 100 ? { completedAt: new Date().toISOString(), status: 'COMPLETED' } : {}),
+      updatedAt: new Date(),
+      ...(progressPercentage === 100 ? { completedAt: new Date(), status: 'COMPLETED' } : {}),
     })
     .where(eq(projects.id, id))
     .returning();

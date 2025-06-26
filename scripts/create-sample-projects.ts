@@ -131,8 +131,8 @@ async function createSampleProjects() {
         projectValue: projectData.projectValue,
         currency: 'USD',
         progressPercentage: projectData.progressPercentage,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }).returning();
 
       console.log(`Created project: ${project.title}`);

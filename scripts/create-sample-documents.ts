@@ -148,8 +148,8 @@ async function createSampleDocuments() {
     const documentsWithInternalNumbers = sampleDocuments.map((doc, index) => ({
       ...doc,
       internalNumber: maxInternalNumber + index + 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }))
     
     const result = await db.insert(documents).values(documentsWithInternalNumbers).returning()

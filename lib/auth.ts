@@ -61,7 +61,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function updateUser(id: number, userData: Partial<User>): Promise<User | null> {
   const [updatedUser] = await db.update(users)
-    .set({ ...userData, updatedAt: new Date().toISOString() })
+    .set({ ...userData, updatedAt: new Date() })
     .where(eq(users.id, id))
     .returning();
   

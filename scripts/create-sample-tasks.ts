@@ -67,7 +67,7 @@ async function createSampleTasks() {
         estimatedHours: 10,
         tags: 'devops,ci,cd,automation',
         order: 0,
-        completedAt: new Date().toISOString(),
+        completedAt: new Date(),
       },
       {
         title: 'Database optimization',
@@ -122,8 +122,8 @@ async function createSampleTasks() {
     for (const task of sampleTasks) {
       await db.insert(tasks).values({
         ...task,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
     }
 

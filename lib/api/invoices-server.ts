@@ -114,8 +114,8 @@ export async function createInvoiceServer(invoiceData: NewInvoice): Promise<Invo
   const [invoice] = await db.insert(invoices)
     .values({
       ...invoiceData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -127,7 +127,7 @@ export async function updateInvoiceServer(id: number, invoiceData: Partial<NewIn
   const [updatedInvoice] = await db.update(invoices)
     .set({
       ...invoiceData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(invoices.id, id))
     .returning();

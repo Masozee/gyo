@@ -22,11 +22,28 @@ export function useAuth() {
           localStorage.removeItem('session')
         } else if (session?.user) {
           const userData = {
-            id: session.user.id,
+            id: parseInt(session.user.id) || 1,
             email: session.user.email!,
+            password: '', // Not stored in auth session
+            firstName: session.user.user_metadata?.firstName || null,
+            lastName: session.user.user_metadata?.lastName || null,
+            username: session.user.user_metadata?.username || null,
+            avatar: null,
+            bio: null,
+            phone: null,
+            dateOfBirth: null,
+            address: null,
+            city: null,
+            state: null,
+            zipCode: null,
+            country: null,
+            company: null,
+            jobTitle: null,
+            website: null,
+            isActive: true,
             emailVerified: session.user.email_confirmed_at ? true : false,
-            createdAt: session.user.created_at!,
-            updatedAt: session.user.updated_at!
+            createdAt: session.user.created_at ? new Date(session.user.created_at) : new Date(),
+            updatedAt: session.user.updated_at ? new Date(session.user.updated_at) : new Date()
           }
           setUser(userData)
           localStorage.setItem('user', JSON.stringify(userData))
@@ -62,11 +79,28 @@ export function useAuth() {
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const userData = {
-            id: session.user.id,
+            id: parseInt(session.user.id) || 1,
             email: session.user.email!,
+            password: '', // Not stored in auth session
+            firstName: session.user.user_metadata?.firstName || null,
+            lastName: session.user.user_metadata?.lastName || null,
+            username: session.user.user_metadata?.username || null,
+            avatar: null,
+            bio: null,
+            phone: null,
+            dateOfBirth: null,
+            address: null,
+            city: null,
+            state: null,
+            zipCode: null,
+            country: null,
+            company: null,
+            jobTitle: null,
+            website: null,
+            isActive: true,
             emailVerified: session.user.email_confirmed_at ? true : false,
-            createdAt: session.user.created_at!,
-            updatedAt: session.user.updated_at!
+            createdAt: session.user.created_at ? new Date(session.user.created_at) : new Date(),
+            updatedAt: session.user.updated_at ? new Date(session.user.updated_at) : new Date()
           }
           setUser(userData)
           localStorage.setItem('user', JSON.stringify(userData))

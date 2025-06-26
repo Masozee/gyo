@@ -103,7 +103,7 @@ export async function createExpenseServer(expenseData: NewExpense): Promise<Expe
   const [expense] = await db.insert(expenses)
     .values({
       ...expenseData,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     })
     .returning();
   

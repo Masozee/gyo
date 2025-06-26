@@ -83,9 +83,10 @@ export function UserProfile() {
     return fullName || user.username || 'User'
   }
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Not set'
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date?: string | Date | null) => {
+    if (!date) return 'Not set'
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

@@ -149,7 +149,7 @@ export async function updateEmail(id: number, userId: number, updates: Partial<{
     updateData.labels = JSON.stringify(updates.labels)
   }
 
-  updateData.updatedAt = new Date().toISOString()
+  updateData.updatedAt = new Date()
 
   const [result] = await db
     .update(emails)
@@ -173,7 +173,7 @@ export async function updateEmails(emailIds: number[], userId: number, updates: 
     updateData.labels = JSON.stringify(updates.labels)
   }
 
-  updateData.updatedAt = new Date().toISOString()
+  updateData.updatedAt = new Date()
 
   const result = await db
     .update(emails)
@@ -274,7 +274,7 @@ export async function updateDraft(id: number, userId: number, updates: Partial<{
     updateData.attachments = JSON.stringify(updates.attachments)
   }
 
-  updateData.updatedAt = new Date().toISOString()
+  updateData.updatedAt = new Date()
 
   const [result] = await db
     .update(emailDrafts)

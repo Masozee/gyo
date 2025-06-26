@@ -33,7 +33,7 @@ export async function createBlogCategoryServer(categoryData: Omit<NewBlogCategor
   try {
     const newCategory = {
       ...categoryData,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     };
     
     const result = await db.insert(blogCategories).values(newCategory).returning();
@@ -218,8 +218,8 @@ export async function createBlogPostServer(postData: Omit<NewBlogPost, 'createdA
   try {
     const newPost = {
       ...postData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     
     const result = await db.insert(blogPosts).values(newPost).returning();
@@ -234,7 +234,7 @@ export async function updateBlogPostServer(id: number, postData: Partial<NewBlog
   try {
     const updateData = {
       ...postData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     };
     
     const result = await db.update(blogPosts)
@@ -301,8 +301,8 @@ export async function createPageServer(pageData: Omit<NewPage, 'createdAt' | 'up
   try {
     const newPage = {
       ...pageData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     
     const result = await db.insert(pages).values(newPage).returning();
@@ -317,7 +317,7 @@ export async function updatePageServer(id: number, pageData: Partial<NewPage>): 
   try {
     const updateData = {
       ...pageData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     };
     
     const result = await db.update(pages)
@@ -432,8 +432,8 @@ export async function createPortfolioItemServer(itemData: Omit<NewPortfolioItem,
   try {
     const newItem = {
       ...itemData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
     
     const result = await db.insert(portfolioItems).values(newItem).returning();
@@ -448,7 +448,7 @@ export async function updatePortfolioItemServer(id: number, itemData: Partial<Ne
   try {
     const updateData = {
       ...itemData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     };
     
     const result = await db.update(portfolioItems)

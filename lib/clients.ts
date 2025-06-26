@@ -37,8 +37,8 @@ export async function createClient(clientData: NewClient): Promise<Client> {
   const [client] = await db.insert(clients)
     .values({
       ...clientData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -50,7 +50,7 @@ export async function updateClient(id: number, clientData: Partial<NewClient>): 
   const [updatedClient] = await db.update(clients)
     .set({
       ...clientData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(clients.id, id))
     .returning();
@@ -87,7 +87,7 @@ export async function toggleClientStatus(id: number): Promise<Client | null> {
   const [updatedClient] = await db.update(clients)
     .set({
       isActive: !client.isActive,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(clients.id, id))
     .returning();

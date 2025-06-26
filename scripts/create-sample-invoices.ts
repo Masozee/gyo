@@ -154,7 +154,7 @@ async function createSampleInvoices() {
         sentAt: invoiceData.status !== 'DRAFT' ? invoiceData.dateIssued : null,
         paidAt: invoiceData.status === 'PAID' ? invoiceData.dateIssued : null,
         createdAt: invoiceData.dateIssued,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       }).returning();
 
       // Create line items

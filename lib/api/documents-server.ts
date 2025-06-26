@@ -109,7 +109,7 @@ export async function getDocumentByIdServer(id: number): Promise<DocumentWithRel
   // Update access tracking
   await db.update(documents)
     .set({
-      lastAccessedAt: new Date().toISOString(),
+      lastAccessedAt: new Date(),
       accessCount: (result.document.accessCount || 0) + 1,
     })
     .where(eq(documents.id, id));
@@ -138,8 +138,8 @@ export async function createDocumentServer(documentData: NewDocument): Promise<D
     .values({
       ...documentData,
       internalNumber,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -151,7 +151,7 @@ export async function updateDocumentServer(id: number, documentData: Partial<New
   const [updatedDocument] = await db.update(documents)
     .set({
       ...documentData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(and(eq(documents.id, id), eq(documents.isActive, true)))
     .returning();
@@ -165,7 +165,7 @@ export async function deleteDocumentServer(id: number): Promise<boolean> {
     const [result] = await db.update(documents)
       .set({
         isActive: false,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(documents.id, id))
       .returning();
@@ -237,7 +237,7 @@ export async function createDocumentRevisionServer(revisionData: {
     .values({
       ...revisionData,
       revisionNumber: nextRevisionNumber,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(),
     })
     .returning();
   
