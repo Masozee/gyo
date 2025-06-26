@@ -1,4 +1,4 @@
-import { db } from '../lib/db';
+import { db } from '../lib/db-server';
 import { invoices, invoiceLineItems, clients, projects } from '../lib/schema';
 import { eq } from 'drizzle-orm';
 import { generateInvoiceNumber } from '../lib/api/invoices';

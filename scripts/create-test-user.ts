@@ -2,25 +2,18 @@ import { createUser } from '../lib/auth';
 
 async function createTestUser() {
   try {
-    console.log('Creating test user...');
-    
-    const testUser = await createUser({
+    const user = await createUser({
       email: 'test@example.com',
       password: 'password123',
-      firstName: 'John',
-      lastName: 'Doe',
-      username: 'johndoe',
+      firstName: 'Test',
+      lastName: 'User',
+      username: 'testuser'
     });
     
-    console.log('Test user created successfully!');
-    console.log('Email: test@example.com');
-    console.log('Password: password123');
-    console.log('User ID:', testUser.id);
-    
+    console.log('Test user created:', user);
   } catch (error) {
     console.error('Error creating test user:', error);
-    process.exit(1);
   }
 }
 
-createTestUser(); 
+createTestUser();

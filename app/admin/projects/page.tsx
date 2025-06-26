@@ -268,7 +268,7 @@ export default function ProjectsPage() {
   };
 
   const openDetailsDialog = (project: ProjectWithRelations) => {
-    router.push(`/projects/${project.id}`);
+    router.push(`/admin/projects/${project.id}`);
   };
 
   const formatDate = (dateString?: string | null) => {

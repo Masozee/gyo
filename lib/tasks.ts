@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/db-server';
 import { tasks, projects, users, Task, NewTask } from '@/lib/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 
@@ -40,8 +40,8 @@ export async function createTask(taskData: NewTask): Promise<Task> {
   const [newTask] = await db.insert(tasks)
     .values({
       ...taskData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -53,8 +53,8 @@ export async function updateTask(id: number, taskData: Partial<NewTask>): Promis
   const [updatedTask] = await db.update(tasks)
     .set({
       ...taskData,
-      updatedAt: new Date().toISOString(),
-      ...(taskData.status === 'DONE' ? { completedAt: new Date().toISOString() } : {}),
+      updatedAt: new Date(),
+      ...(taskData.status === 'DONE' ? { completedAt: new Date() } : {}),
     })
     .where(eq(tasks.id, id))
     .returning();
@@ -79,7 +79,7 @@ export async function deleteTask(id: number): Promise<boolean> {
 export async function updateTaskStatus(id: number, status: string, order?: number): Promise<Task | null> {
   const updateData: Partial<NewTask> = {
     status,
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(),
   };
 
   if (order !== undefined) {
@@ -87,7 +87,7 @@ export async function updateTaskStatus(id: number, status: string, order?: numbe
   }
 
   if (status === 'DONE') {
-    updateData.completedAt = new Date().toISOString();
+    updateData.completedAt = new Date();
   }
 
   const [updatedTask] = await db.update(tasks)
@@ -126,7 +126,7 @@ export async function reorderTasks(taskIds: number[]): Promise<void> {
     db.update(tasks)
       .set({ 
         order: index,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(tasks.id, taskId))
   );

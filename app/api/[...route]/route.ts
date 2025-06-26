@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { app } from '@/lib/hono-app'
 
-export const runtime = 'edge'
-
 // Handle all HTTP methods through Hono
 async function handler(req: NextRequest) {
   try {

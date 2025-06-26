@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { HTTPException } from 'hono/http-exception'
+import { createClient } from '@supabase/supabase-js'
 
 
 
@@ -19,23 +20,73 @@ import {
   getSigningRequests,
   getSigningRequestByToken,
   signDocument,
-  handleUrlRedirect 
+  handleUrlRedirect,
+  getYouTubeVideoInfo,
+  downloadYouTubeVideo,
+  getYouTubeStreamInfo
 } from './api/tools-server'
 import { getClientsServer, getActiveClientsServer, getClientByIdServer, createClientServer, updateClientServer, deleteClientServer, toggleClientStatusServer } from './api/clients-server'
 import { getProjectsServer, getProjectByIdServer, createProjectServer, updateProjectServer, deleteProjectServer, updateProjectProgressServer, getProjectStatsServer } from './api/projects-server'
-import { getTasksServer, getTaskByIdServer, createTaskServer, updateTaskServer, deleteTaskServer } from './api/tasks-server'
+import { getTasksServer, getTaskByIdServer, createTaskServer, updateTaskServer, deleteTaskServer, getTaskCommentsServer, createTaskCommentServer, getTaskFilesServer, uploadTaskFileServer, uploadCommentFileServer } from './api/tasks-server'
 import { getExpensesServer, getExpenseByIdServer, createExpenseServer, updateExpenseServer, deleteExpenseServer } from './api/expenses-server'
 import { getDocumentsServer, getDocumentByIdServer, createDocumentServer, updateDocumentServer, deleteDocumentServer } from './api/documents-server'
 import { getPagesServer, getPageBySlugServer, createPageServer, updatePageServer, deletePageServer } from './api/cms-server'
 import { getBlogPostsServer, getBlogPostByIdServer, getBlogPostBySlugServer, createBlogPostServer, updateBlogPostServer, deleteBlogPostServer, getBlogCategoriesServer, createBlogCategoryServer, getPortfolioItemsServer, getPortfolioItemByIdServer, createPortfolioItemServer, updatePortfolioItemServer, deletePortfolioItemServer } from './api/cms-server'
+import { getEventsServer, getEventByIdServer, createEventServer, updateEventServer, deleteEventServer, getEventsByDateRangeServer, getUpcomingEventsServer, getEventsByStatusServer } from './api/events-server'
+import { createChatConversation, getChatConversations, getChatConversationWithMessages, updateChatConversation, deleteChatConversation, addChatMessage, generateConversationTitle, getConversationStats } from './api/chat-server'
 
-// Import auth functions
+// Import auth functions (for user management, not authentication)
 import { 
-  createUser, 
-  authenticateUser, 
   getUserById, 
+  getUserByEmail,
   updateUser 
 } from './auth'
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || 'https://vvzhwzzotfqbfvivjgyv.supabase.co'
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2emh3enpvdGZxYmZ2aXZqZ3l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4NDI1NDgsImV4cCI6MjA2NjQxODU0OH0.YdPn4BYp5Rt5ETeP7MeWWySPDuPPgMWNFLN4X8qJ8So'
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Authentication helper function
+async function getAuthenticatedUser(c: any) {
+  const authHeader = c.req.header('Authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  
+  const token = authHeader.split(' ')[1]
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (error || !user) {
+      return null
+    }
+    return user
+  } catch (error) {
+    return null
+  }
+}
+
+// Development mode authentication bypass
+function isDevelopmentMode() {
+  return process.env.NODE_ENV === 'development'
+}
+
+async function getAuthenticatedUserOrBypass(c: any) {
+  // In development mode, allow bypass if no auth header is present
+  if (isDevelopmentMode()) {
+    const authHeader = c.req.header('Authorization')
+    if (!authHeader) {
+      console.log('🔓 Development mode: Bypassing authentication')
+      return { id: 'dev-user', email: 'dev@localhost' }
+    }
+  }
+  
+  return await getAuthenticatedUser(c)
+}
+
+// Use a default user ID for database operations (like tasks)
+const DEFAULT_USER_ID = 1
 
 const app = new Hono()
 
@@ -66,20 +117,41 @@ app.post('/auth/register', async (c) => {
       throw new HTTPException(400, { message: 'Email and password are required' })
     }
     
-    const user = await createUser(userData)
+    // Use Supabase authentication
+    const { data, error } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: {
+        data: {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          username: userData.username
+        }
+      }
+    })
     
-    // Remove password from response
-    const { password, ...userWithoutPassword } = user
+    if (error) {
+      throw new HTTPException(400, { message: error.message })
+    }
     
     return c.json({ 
       message: 'User created successfully',
-      user: userWithoutPassword 
+      user: {
+        id: data.user?.id,
+        email: data.user?.email,
+        emailVerified: data.user?.email_confirmed_at ? true : false,
+        createdAt: data.user?.created_at,
+        updatedAt: data.user?.updated_at
+      },
+      session: data.session ? {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresAt: data.session.expires_at
+      } : null
     }, 201)
   } catch (error: any) {
     console.error('Registration error:', error)
-    if (error.message?.includes('UNIQUE constraint failed')) {
-      throw new HTTPException(400, { message: 'Email or username already exists' })
-    }
+    if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to create user' })
   }
 })
@@ -92,18 +164,30 @@ app.post('/auth/login', async (c) => {
       throw new HTTPException(400, { message: 'Email and password are required' })
     }
     
-    const user = await authenticateUser(email, password)
+    // Use Supabase authentication
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
     
-    if (!user) {
+    if (error) {
       throw new HTTPException(401, { message: 'Invalid email or password' })
     }
     
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
-    
     return c.json({ 
       message: 'Login successful',
-      user: userWithoutPassword 
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        emailVerified: data.user.email_confirmed_at ? true : false,
+        createdAt: data.user.created_at,
+        updatedAt: data.user.updated_at
+      },
+      session: {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresAt: data.session.expires_at
+      }
     })
   } catch (error) {
     console.error('Login error:', error)
@@ -167,6 +251,32 @@ app.put('/users/:id', async (c) => {
     console.error('Error updating user:', error)
     if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to update user' })
+  }
+})
+
+// Get user by email
+app.get('/users/email/:email', async (c) => {
+  try {
+    const email = c.req.param('email')
+    
+    if (!email) {
+      throw new HTTPException(400, { message: 'Email is required' })
+    }
+    
+    const user = await getUserByEmail(email)
+    
+    if (!user) {
+      throw new HTTPException(404, { message: 'User not found' })
+    }
+    
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user
+    
+    return c.json({ user: userWithoutPassword })
+  } catch (error) {
+    console.error('Error fetching user by email:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch user by email' })
   }
 })
 
@@ -356,6 +466,104 @@ app.delete('/tasks/:id', async (c) => {
   } catch (error) {
     console.error('Error deleting task:', error)
     throw new HTTPException(500, { message: 'Failed to delete task' })
+  }
+})
+
+// TASK COMMENTS ROUTES
+app.get('/tasks/:id/comments', async (c) => {
+  try {
+    const taskId = parseInt(c.req.param('id'))
+    
+    if (isNaN(taskId)) {
+      throw new HTTPException(400, { message: 'Invalid task ID' })
+    }
+
+    const comments = await getTaskCommentsServer(taskId)
+    return c.json(comments)
+  } catch (error) {
+    console.error('Error fetching task comments:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch task comments' })
+  }
+})
+
+app.post('/tasks/:id/comments', async (c) => {
+  try {
+    const taskId = parseInt(c.req.param('id'))
+    const { content, authorId, isInternal = false } = await c.req.json()
+    
+    if (isNaN(taskId)) {
+      throw new HTTPException(400, { message: 'Invalid task ID' })
+    }
+
+    if (!content || !authorId) {
+      throw new HTTPException(400, { message: 'Content and author ID are required' })
+    }
+
+    const comment = await createTaskCommentServer(taskId, authorId, content, isInternal)
+    return c.json(comment, 201)
+  } catch (error) {
+    console.error('Error creating task comment:', error)
+    throw new HTTPException(500, { message: 'Failed to create task comment' })
+  }
+})
+
+// TASK FILES ROUTES
+app.get('/tasks/:id/files', async (c) => {
+  try {
+    const taskId = parseInt(c.req.param('id'))
+    
+    if (isNaN(taskId)) {
+      throw new HTTPException(400, { message: 'Invalid task ID' })
+    }
+
+    const files = await getTaskFilesServer(taskId)
+    return c.json(files)
+  } catch (error) {
+    console.error('Error fetching task files:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch task files' })
+  }
+})
+
+app.post('/tasks/:id/files', async (c) => {
+  try {
+    const taskId = parseInt(c.req.param('id'))
+    const { projectId, uploadedById, fileName, fileUrl, fileSize, fileType, description } = await c.req.json()
+    
+    if (isNaN(taskId)) {
+      throw new HTTPException(400, { message: 'Invalid task ID' })
+    }
+
+    if (!projectId || !uploadedById || !fileName || !fileUrl) {
+      throw new HTTPException(400, { message: 'Missing required fields' })
+    }
+
+    const file = await uploadTaskFileServer(taskId, projectId, uploadedById, fileName, fileUrl, fileSize, fileType, description)
+    return c.json(file, 201)
+  } catch (error) {
+    console.error('Error uploading task file:', error)
+    throw new HTTPException(500, { message: 'Failed to upload task file' })
+  }
+})
+
+// Upload file for a comment
+app.post('/comments/:commentId/files', async (c) => {
+  try {
+    const commentId = parseInt(c.req.param('commentId'))
+    const { projectId, uploadedById, fileName, fileUrl, fileSize, fileType, description } = await c.req.json()
+    
+    if (isNaN(commentId)) {
+      throw new HTTPException(400, { message: 'Invalid comment ID' })
+    }
+
+    if (!projectId || !uploadedById || !fileName || !fileUrl) {
+      throw new HTTPException(400, { message: 'Missing required fields' })
+    }
+
+    const file = await uploadCommentFileServer(commentId, projectId, uploadedById, fileName, fileUrl, fileSize, fileType, description)
+    return c.json(file, 201)
+  } catch (error) {
+    console.error('Error uploading comment file:', error)
+    throw new HTTPException(500, { message: 'Failed to upload comment file' })
   }
 })
 
@@ -984,20 +1192,29 @@ app.patch('/clients/:id/toggle-status', async (c) => {
 // ─── URL Shortener ───
 app.get('/tools/urls', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
-    const urls = await getShortenedUrls(userId)
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const urls = await getShortenedUrls(DEFAULT_USER_ID)
     return c.json(urls)
   } catch (error) {
     console.error('Error fetching shortened URLs:', error)
+    if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to fetch shortened URLs' })
   }
 })
 
 app.post('/tools/urls', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
     const data = await c.req.json()
     
     if (!data.originalUrl) {
@@ -1005,7 +1222,7 @@ app.post('/tools/urls', async (c) => {
     }
 
     const url = await createShortenedUrl({
-      userId,
+      userId: DEFAULT_USER_ID,
       originalUrl: data.originalUrl,
       customAlias: data.customAlias,
       description: data.description,
@@ -1015,6 +1232,7 @@ app.post('/tools/urls', async (c) => {
     return c.json(url, 201)
   } catch (error: any) {
     console.error('Error creating shortened URL:', error)
+    if (error instanceof HTTPException) throw error
     if (error.message?.includes('already exists')) {
       throw new HTTPException(400, { message: error.message })
     }
@@ -1024,15 +1242,19 @@ app.post('/tools/urls', async (c) => {
 
 app.delete('/tools/urls/:id', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
     const id = parseInt(c.req.param('id'))
     
     if (isNaN(id)) {
       throw new HTTPException(400, { message: 'Invalid URL ID' })
     }
 
-    const deleted = await deleteShortenedUrl(id, userId)
+    const deleted = await deleteShortenedUrl(id, DEFAULT_USER_ID)
     if (!deleted) {
       throw new HTTPException(404, { message: 'Shortened URL not found' })
     }
@@ -1048,15 +1270,19 @@ app.delete('/tools/urls/:id', async (c) => {
 // URL analytics endpoint
 app.get('/tools/urls/:id/analytics', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
     const id = parseInt(c.req.param('id'))
     
     if (isNaN(id)) {
       throw new HTTPException(400, { message: 'Invalid URL ID' })
     }
 
-    const analytics = await getUrlAnalytics(id, userId)
+    const analytics = await getUrlAnalytics(id, DEFAULT_USER_ID)
     if (!analytics) {
       throw new HTTPException(404, { message: 'Shortened URL not found' })
     }
@@ -1073,7 +1299,7 @@ app.get('/tools/urls/:id/analytics', async (c) => {
 app.get('/s/:shortCode', async (c) => {
   try {
     const shortCode = c.req.param('shortCode')
-    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown'
+    const ip = c.req.header('x-forwarded-for') || c.req.header('cf-connecting-ip') || c.req.header('x-real-ip') || 'unknown'
     const userAgent = c.req.header('user-agent') || ''
     const referer = c.req.header('referer') || ''
 
@@ -1098,20 +1324,29 @@ app.get('/s/:shortCode', async (c) => {
 // ─── QR Codes ───
 app.get('/tools/qr-codes', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
-    const qrCodes = await getQrCodes(userId)
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const qrCodes = await getQrCodes(DEFAULT_USER_ID)
     return c.json(qrCodes)
   } catch (error) {
     console.error('Error fetching QR codes:', error)
+    if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to fetch QR codes' })
   }
 })
 
 app.post('/tools/qr-codes', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
     const data = await c.req.json()
     
     if (!data.name || !data.type || !data.data) {
@@ -1119,7 +1354,7 @@ app.post('/tools/qr-codes', async (c) => {
     }
 
     const qrCode = await createQrCode({
-      userId,
+      userId: DEFAULT_USER_ID,
       name: data.name,
       type: data.type,
       data: data.data,
@@ -1134,21 +1369,26 @@ app.post('/tools/qr-codes', async (c) => {
     return c.json(qrCode, 201)
   } catch (error) {
     console.error('Error creating QR code:', error)
+    if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to create QR code' })
   }
 })
 
 app.delete('/tools/qr-codes/:id', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
     const id = parseInt(c.req.param('id'))
     
     if (isNaN(id)) {
       throw new HTTPException(400, { message: 'Invalid QR code ID' })
     }
 
-    const deleted = await deleteQrCode(id, userId)
+    const deleted = await deleteQrCode(id, DEFAULT_USER_ID)
     if (!deleted) {
       throw new HTTPException(404, { message: 'QR code not found' })
     }
@@ -1164,20 +1404,29 @@ app.delete('/tools/qr-codes/:id', async (c) => {
 // ─── Document Signing ───
 app.get('/tools/signing-requests', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
-    const requests = await getSigningRequests(userId)
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const requests = await getSigningRequests(DEFAULT_USER_ID)
     return c.json(requests)
   } catch (error) {
     console.error('Error fetching signing requests:', error)
+    if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to fetch signing requests' })
   }
 })
 
 app.post('/tools/signing-requests', async (c) => {
   try {
-    // TODO: Get user ID from authentication
-    const userId = 1 // Placeholder
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
     const data = await c.req.json()
     
     if (!data.documentName || !data.documentUrl || !data.title || !data.expiresAt || !data.signers?.length) {
@@ -1185,7 +1434,7 @@ app.post('/tools/signing-requests', async (c) => {
     }
 
     const request = await createSigningRequest({
-      userId,
+      userId: DEFAULT_USER_ID,
       documentName: data.documentName,
       documentUrl: data.documentUrl,
       documentSize: data.documentSize,
@@ -1199,6 +1448,7 @@ app.post('/tools/signing-requests', async (c) => {
     return c.json(request, 201)
   } catch (error) {
     console.error('Error creating signing request:', error)
+    if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to create signing request' })
   }
 })
@@ -1240,7 +1490,7 @@ app.post('/sign/:token', async (c) => {
       throw new HTTPException(400, { message: 'Signature data and type are required' })
     }
 
-    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown'
+    const ip = c.req.header('x-forwarded-for') || c.req.header('cf-connecting-ip') || c.req.header('x-real-ip') || 'unknown'
     const userAgent = c.req.header('user-agent') || ''
 
     const success = await signDocument({
@@ -1260,6 +1510,342 @@ app.post('/sign/:token', async (c) => {
     console.error('Error signing document:', error)
     if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to sign document' })
+  }
+})
+
+// ─── YouTube Downloader ───
+app.post('/tools/youtube/info', async (c) => {
+  try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const data = await c.req.json()
+    
+    if (!data.url) {
+      throw new HTTPException(400, { message: 'YouTube URL is required' })
+    }
+
+    const videoInfo = await getYouTubeVideoInfo(data.url)
+    if (!videoInfo) {
+      throw new HTTPException(400, { message: 'Invalid YouTube URL or video not found' })
+    }
+    
+    return c.json({ videoInfo })
+  } catch (error) {
+    console.error('Error getting YouTube video info:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to get video information' })
+  }
+})
+
+app.post('/tools/youtube/download', async (c) => {
+  try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const data = await c.req.json()
+    
+    if (!data.url || !data.itag || !data.type) {
+      throw new HTTPException(400, { message: 'URL, itag, and type are required' })
+    }
+
+    const result = await downloadYouTubeVideo(data.url, data.itag, data.type)
+    
+    return c.json(result)
+  } catch (error) {
+    console.error('Error processing YouTube download:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to process download request' })
+  }
+})
+
+// Streaming endpoint for YouTube downloads
+app.get('/tools/youtube/stream', async (c) => {
+  try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const url = c.req.query('url')
+    const itag = c.req.query('itag')
+    
+    if (!url || !itag) {
+      throw new HTTPException(400, { message: 'URL and itag are required' })
+    }
+
+    const result = await getYouTubeStreamInfo(decodeURIComponent(url), itag)
+    
+    if (!result.success || !result.stream) {
+      throw new HTTPException(400, { message: result.message })
+    }
+
+    // Set response headers for download
+    c.header('Content-Type', result.contentType || 'application/octet-stream')
+    c.header('Content-Disposition', `attachment; filename="${result.filename}"`)
+    c.header('Cache-Control', 'no-cache')
+    
+    // Return the stream
+    return new Response(result.stream, {
+      headers: {
+        'Content-Type': result.contentType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${result.filename}"`,
+        'Cache-Control': 'no-cache'
+      }
+    })
+  } catch (error) {
+    console.error('Error streaming YouTube video:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to stream video' })
+  }
+})
+
+// ─── Gemini AI Chat ───
+app.post('/chat/gemini', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const { sendMessageToGemini } = await import('./gemini')
+    const data = await c.req.json()
+    
+    if (!data.message) {
+      throw new HTTPException(400, { message: 'Message is required' })
+    }
+
+    const response = await sendMessageToGemini(data.message, data.conversationHistory || [])
+    
+    // Save the conversation if successful
+    if (response.success && response.message) {
+      try {
+        let conversationId = data.conversationId
+        
+        // Create new conversation if not provided
+        if (!conversationId) {
+          const title = await generateConversationTitle(data.message)
+          const conversation = await createChatConversation({
+            userId: DEFAULT_USER_ID,
+            title,
+          })
+          conversationId = conversation.id
+        }
+        
+        // Save user message
+        await addChatMessage({
+          conversationId,
+          role: 'user',
+          content: data.message,
+        })
+        
+        // Save assistant response
+        await addChatMessage({
+          conversationId,
+          role: 'assistant',
+          content: response.message,
+        })
+        
+        // Include conversation ID in response
+        response.conversationId = conversationId
+      } catch (dbError) {
+        console.error('Failed to save chat to database:', dbError)
+        // Don't fail the API call if database save fails
+      }
+    }
+    
+    return c.json(response)
+  } catch (error) {
+    console.error('Error in Gemini chat:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to process chat message' })
+  }
+})
+
+app.post('/chat/gemini/stream', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const { streamMessageToGemini } = await import('./gemini')
+    const data = await c.req.json()
+    
+    if (!data.message) {
+      throw new HTTPException(400, { message: 'Message is required' })
+    }
+
+    const stream = await streamMessageToGemini(data.message, data.conversationHistory || [])
+    
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      }
+    })
+  } catch (error) {
+    console.error('Error in Gemini stream chat:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to process stream chat message' })
+  }
+})
+
+// ─── Chat Conversations Management ───
+app.get('/chat/conversations', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    // Use default user ID for now (in production, map supabase user to our user table)
+    const conversations = await getChatConversations(DEFAULT_USER_ID)
+    return c.json({ conversations })
+  } catch (error) {
+    console.error('Error fetching conversations:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch conversations' })
+  }
+})
+
+app.post('/chat/conversations', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const data = await c.req.json()
+    
+    if (!data.title) {
+      throw new HTTPException(400, { message: 'Title is required' })
+    }
+
+    const conversation = await createChatConversation({
+      userId: DEFAULT_USER_ID,
+      title: data.title,
+      description: data.description
+    })
+    
+    return c.json({ conversation }, 201)
+  } catch (error) {
+    console.error('Error creating conversation:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to create conversation' })
+  }
+})
+
+app.get('/chat/conversations/:id', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const conversationId = parseInt(c.req.param('id'))
+    if (isNaN(conversationId)) {
+      throw new HTTPException(400, { message: 'Invalid conversation ID' })
+    }
+
+    const conversation = await getChatConversationWithMessages(conversationId, DEFAULT_USER_ID)
+    
+    if (!conversation) {
+      throw new HTTPException(404, { message: 'Conversation not found' })
+    }
+    
+    return c.json({ conversation })
+  } catch (error) {
+    console.error('Error fetching conversation:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch conversation' })
+  }
+})
+
+app.put('/chat/conversations/:id', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const conversationId = parseInt(c.req.param('id'))
+    if (isNaN(conversationId)) {
+      throw new HTTPException(400, { message: 'Invalid conversation ID' })
+    }
+
+    const data = await c.req.json()
+    
+    const conversation = await updateChatConversation(conversationId, DEFAULT_USER_ID, data)
+    
+    if (!conversation) {
+      throw new HTTPException(404, { message: 'Conversation not found' })
+    }
+    
+    return c.json({ conversation })
+  } catch (error) {
+    console.error('Error updating conversation:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to update conversation' })
+  }
+})
+
+app.delete('/chat/conversations/:id', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const conversationId = parseInt(c.req.param('id'))
+    if (isNaN(conversationId)) {
+      throw new HTTPException(400, { message: 'Invalid conversation ID' })
+    }
+
+    const success = await deleteChatConversation(conversationId, DEFAULT_USER_ID)
+    
+    if (!success) {
+      throw new HTTPException(404, { message: 'Conversation not found' })
+    }
+    
+    return c.json({ message: 'Conversation deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting conversation:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to delete conversation' })
+  }
+})
+
+app.get('/chat/stats', async (c) => {
+  try {
+    // Check authentication (with development mode bypass)
+    const supabaseUser = await getAuthenticatedUserOrBypass(c)
+    if (!supabaseUser) {
+      throw new HTTPException(401, { message: 'Unauthorized - Please log in' })
+    }
+
+    const stats = await getConversationStats(DEFAULT_USER_ID)
+    
+    return c.json({ stats })
+  } catch (error) {
+    console.error('Error fetching chat stats:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch chat stats' })
   }
 })
 
@@ -1566,6 +2152,129 @@ app.delete('/cms/portfolio/:id', async (c) => {
     console.error('Error deleting portfolio item:', error)
     if (error instanceof HTTPException) throw error
     throw new HTTPException(500, { message: 'Failed to delete portfolio item' })
+  }
+})
+
+// EVENTS/SCHEDULE ROUTES
+app.get('/events', async (c) => {
+  try {
+    const userId = c.req.query('userId') ? parseInt(c.req.query('userId')!) : undefined
+    const startDate = c.req.query('startDate')
+    const endDate = c.req.query('endDate')
+    const projectId = c.req.query('projectId') ? parseInt(c.req.query('projectId')!) : undefined
+    const clientId = c.req.query('clientId') ? parseInt(c.req.query('clientId')!) : undefined
+    const type = c.req.query('type')
+
+    const events = await getEventsServer(userId, startDate, endDate, projectId, clientId, type)
+    return c.json({ events })
+  } catch (error) {
+    console.error('Error fetching events:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch events' })
+  }
+})
+
+app.get('/events/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid event ID' })
+    }
+
+    const event = await getEventByIdServer(id)
+    
+    if (!event) {
+      throw new HTTPException(404, { message: 'Event not found' })
+    }
+    
+    return c.json(event)
+  } catch (error) {
+    console.error('Error fetching event:', error)
+    if (error instanceof HTTPException) throw error
+    throw new HTTPException(500, { message: 'Failed to fetch event' })
+  }
+})
+
+app.post('/events', async (c) => {
+  try {
+    const eventData = await c.req.json()
+    const event = await createEventServer(eventData)
+    return c.json(event, 201)
+  } catch (error) {
+    console.error('Error creating event:', error)
+    throw new HTTPException(500, { message: 'Failed to create event' })
+  }
+})
+
+app.put('/events/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    const eventData = await c.req.json()
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid event ID' })
+    }
+
+    const event = await updateEventServer(id, eventData)
+    return c.json(event)
+  } catch (error) {
+    console.error('Error updating event:', error)
+    throw new HTTPException(500, { message: 'Failed to update event' })
+  }
+})
+
+app.delete('/events/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'))
+    
+    if (isNaN(id)) {
+      throw new HTTPException(400, { message: 'Invalid event ID' })
+    }
+
+    await deleteEventServer(id)
+    return c.json({ message: 'Event deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting event:', error)
+    throw new HTTPException(500, { message: 'Failed to delete event' })
+  }
+})
+
+app.get('/events/upcoming/:userId', async (c) => {
+  try {
+    const userId = parseInt(c.req.param('userId'))
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!) : 10
+    
+    if (isNaN(userId)) {
+      throw new HTTPException(400, { message: 'Invalid user ID' })
+    }
+
+    const events = await getUpcomingEventsServer(userId, limit)
+    return c.json({ events })
+  } catch (error) {
+    console.error('Error fetching upcoming events:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch upcoming events' })
+  }
+})
+
+app.get('/events/range/:userId', async (c) => {
+  try {
+    const userId = parseInt(c.req.param('userId'))
+    const startDate = c.req.query('startDate')
+    const endDate = c.req.query('endDate')
+    
+    if (isNaN(userId)) {
+      throw new HTTPException(400, { message: 'Invalid user ID' })
+    }
+
+    if (!startDate || !endDate) {
+      throw new HTTPException(400, { message: 'Start date and end date are required' })
+    }
+
+    const events = await getEventsByDateRangeServer(userId, startDate, endDate)
+    return c.json({ events })
+  } catch (error) {
+    console.error('Error fetching events by date range:', error)
+    throw new HTTPException(500, { message: 'Failed to fetch events by date range' })
   }
 })
 

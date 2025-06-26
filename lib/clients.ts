@@ -1,5 +1,5 @@
 import { eq, like, or, desc } from 'drizzle-orm';
-import { db } from './db';
+import { db } from './db-server';
 import { clients, type Client, type NewClient } from './schema';
 
 // Get all clients with optional search

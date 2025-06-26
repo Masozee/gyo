@@ -46,8 +46,9 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { TaskForm } from '@/components/task-form';
-import { getTask, updateTask, TaskWithRelations, TaskFormData } from '@/lib/api/tasks';
+import { getTask, updateTask, deleteTask, getTaskComments, createTaskComment, getTaskFiles, uploadTaskFile, uploadCommentFile, TaskWithRelations, TaskFormData } from '@/lib/api/tasks';
 import { getProjects } from '@/lib/api/projects';
+import { FileUpload } from '@/components/file-upload';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -78,6 +79,10 @@ import {
   Eye,
   MessageCircle,
   Paperclip,
+  Image as ImageIcon,
+  FileText as FileTextIcon,
+  File as FileIcon,
+  X,
 } from 'lucide-react';
 
 const statusConfig = {
@@ -136,13 +141,42 @@ const priorityConfig = {
   },
 } as const;
 
-interface Note {
+interface TaskComment {
   id: number;
   content: string;
-  createdAt: string;
+  isInternal: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
   author: {
+    id: number;
     firstName: string;
     lastName: string;
+    email: string;
+  };
+  attachments?: {
+    id: number;
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    description?: string;
+    createdAt: string | Date;
+  }[];
+}
+
+interface TaskFile {
+  id: number;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number;
+  fileType: string;
+  description?: string;
+  createdAt: string | Date;
+  uploadedBy: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
   };
 }
 
@@ -154,6 +188,7 @@ interface Activity {
   author: {
     firstName: string;
     lastName: string;
+    id?: number;
   };
   metadata?: {
     oldValue?: string;
@@ -168,13 +203,16 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<TaskWithRelations | null>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [files, setFiles] = useState<TaskFile[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [newNote, setNewNote] = useState('');
+  const [newComment, setNewComment] = useState('');
+  const [showFileUpload, setShowFileUpload] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [commentFileUpload, setCommentFileUpload] = useState<number | null>(null); // Track which comment is being used for file upload
 
   const taskId = parseInt(params.id as string);
 
@@ -182,65 +220,52 @@ export default function TaskDetailPage() {
     requireAuth();
   }, [requireAuth]);
 
+
   // Load task data
   const loadTask = useCallback(async () => {
     try {
       setLoading(true);
-      const [taskData, projectsData] = await Promise.all([
+      const [taskData, projectsData, commentsData, filesData] = await Promise.all([
         getTask(taskId),
-        getProjects()
+        getProjects(),
+        getTaskComments(taskId),
+        getTaskFiles(taskId)
       ]);
       setTask(taskData);
       setProjects(projectsData);
+      setComments(commentsData);
+      setFiles(filesData);
       setEditedTitle(taskData.title);
       
-      // Mock notes and activities for demonstration
-      setNotes([
-        {
-          id: 1,
-          content: "Started working on this task. The initial analysis shows we need to implement the advanced table features with sorting and filtering capabilities.",
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          author: { firstName: "John", lastName: "Doe" }
-        },
-        {
-          id: 2,
-          content: "Added sorting functionality and responsive design. The table now adapts to different screen sizes. Next step is to implement the filtering system and bulk actions.",
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          author: { firstName: "Jane", lastName: "Smith" }
-        }
-      ]);
-
-      setActivities([
+      // Create activity timeline from comments and task updates
+      const taskActivities: Activity[] = [
         {
           id: 1,
           type: 'created',
           description: 'Task was created',
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          author: { firstName: "John", lastName: "Doe" }
-        },
-        {
-          id: 2,
-          type: 'status_change',
-          description: 'Status changed from To Do to In Progress',
-          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          author: { firstName: "John", lastName: "Doe" },
-          metadata: { oldValue: 'TODO', newValue: 'IN_PROGRESS' }
-        },
-        {
-          id: 3,
-          type: 'assignment',
-          description: 'Task assigned to Jane Smith',
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          author: { firstName: "John", lastName: "Doe" }
-        },
-        {
-          id: 4,
+          createdAt: typeof taskData.createdAt === 'string' ? taskData.createdAt : taskData.createdAt?.toISOString() || new Date().toISOString(),
+          author: { firstName: "System", lastName: "" }
+        }
+      ];
+
+      // Add comment activities
+      commentsData.forEach((comment: TaskComment) => {
+        taskActivities.push({
+          id: comment.id + 1000,
           type: 'comment',
           description: 'Added a comment',
-          createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-          author: { firstName: "Jane", lastName: "Smith" }
-        }
-      ]);
+          createdAt: typeof comment.createdAt === 'string' ? comment.createdAt : comment.createdAt.toISOString(),
+          author: { 
+            firstName: comment.author.firstName, 
+            lastName: comment.author.lastName,
+            id: comment.author.id // Add ID for checking
+          }
+        });
+      });
+
+      // Sort activities by date
+      taskActivities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setActivities(taskActivities);
     } catch (error) {
       console.error('Failed to load task:', error);
       toast.error('Failed to load task');
@@ -271,20 +296,90 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Handle add note
-  const handleAddNote = () => {
-    if (!newNote.trim()) return;
+  // Handle add comment
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !task || !user) return;
 
-    const note: Note = {
-      id: Date.now(),
-      content: newNote,
-      createdAt: new Date().toISOString(),
-      author: { firstName: user?.firstName ?? 'You', lastName: user?.lastName ?? '' }
-    };
+    try {
+      // Use a default user ID of 1 for Supabase auth users
+      const comment = await createTaskComment(task.id, newComment, 1, false);
+      setComments([comment, ...comments]);
+      setNewComment('');
+      toast.success('Comment added');
+      
+      // Reload data to get updated activities
+      loadTask();
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      toast.error('Failed to add comment');
+    }
+  };
 
-    setNotes([note, ...notes]);
-    setNewNote('');
-    toast.success('Note added');
+  // Handle file upload
+  const handleFileUpload = async (fileData: {
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    description?: string;
+  }) => {
+    if (!task || !user) return;
+
+    try {
+      const file = await uploadTaskFile(
+        task.id,
+        task.projectId,
+        1, // Use default user ID for Supabase auth users
+        fileData.fileName,
+        fileData.fileUrl,
+        fileData.fileSize,
+        fileData.fileType,
+        fileData.description
+      );
+      setFiles([file, ...files]);
+      setShowFileUpload(false);
+      toast.success('File uploaded successfully');
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      toast.error('Failed to upload file');
+    }
+  };
+
+  // Handle comment file upload
+  const handleCommentFileUpload = async (fileData: {
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    fileType: string;
+    description?: string;
+  }) => {
+    if (!task || !user || !commentFileUpload) return;
+
+    try {
+      const file = await uploadCommentFile(
+        commentFileUpload,
+        task.projectId,
+        1, // Use default user ID for Supabase auth users
+        fileData.fileName,
+        fileData.fileUrl,
+        fileData.fileSize,
+        fileData.fileType,
+        fileData.description
+      );
+      
+      // Update the comment with the new attachment
+      setComments(comments.map(comment => 
+        comment.id === commentFileUpload 
+          ? { ...comment, attachments: [...(comment.attachments || []), file] }
+          : comment
+      ));
+      
+      setCommentFileUpload(null);
+      toast.success('File attached to comment successfully');
+    } catch (error) {
+      console.error('Failed to upload comment file:', error);
+      toast.error('Failed to upload comment file');
+    }
   };
 
   // Handle status change
@@ -321,16 +416,45 @@ export default function TaskDetailPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  // Handle delete task
+  const handleDeleteTask = async () => {
+    if (!task) return;
+    
+    if (!confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await deleteTask(task.id);
+      toast.success('Task deleted successfully');
+      router.push('/admin/tasks');
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      toast.error('Failed to delete task');
+         }
+   };
+
+  // Handle copy link
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/admin/tasks/${task?.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Link copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy link');
+    });
+  };
+
+  const formatDate = (dateString: string | Date) => {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
   };
 
-  const formatRelativeDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatRelativeDate = (dateString: string | Date) => {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
@@ -382,11 +506,11 @@ export default function TaskDetailPage() {
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+                  <BreadcrumbLink href="/admin/dashboard">Dashboard</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/tasks">Tasks</BreadcrumbLink>
+                  <BreadcrumbLink href="/admin/tasks">Tasks</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
@@ -401,168 +525,175 @@ export default function TaskDetailPage() {
           </div>
         </header>
         
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto p-6 space-y-8">
-            {/* Navigation */}
-            <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                onClick={() => router.back()}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Tasks
-              </Button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Task
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Link
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open in New Tab
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-red-600">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Task
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+        <div className="flex-1">
+          <div className="max-w-7xl mx-auto">
+            <div className="p-6">
+              {/* Navigation */}
+              <div className="flex items-center justify-between mb-8">
+                <Button
+                  variant="ghost"
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Tasks
+                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Task
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleCopyLink}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Link
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => window.open(`/admin/tasks/${task.id}`, '_blank')}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Open in New Tab
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      className="text-red-600"
+                      onClick={handleDeleteTask}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Task
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Task Header */}
+              <div className="space-y-6 mb-8">
+                {/* Status and Priority */}
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-none border ${currentStatus.bg} ${currentStatus.color}`}>
+                    <StatusIcon className="h-4 w-4" />
+                  </div>
+                  <Select value={task.status || 'TODO'} onValueChange={handleStatusChange}>
+                    <SelectTrigger className="w-auto border-none bg-transparent p-0 h-auto focus:ring-0 text-sm font-medium">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-none">
+                      <SelectItem value="TODO">To Do</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="IN_REVIEW">In Review</SelectItem>
+                      <SelectItem value="DONE">Done</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Separator orientation="vertical" className="h-4" />
+                  <Badge variant="outline" className={`rounded-none ${currentPriority.color}`}>
+                    <span className="mr-1">{currentPriority.icon}</span>
+                    {currentPriority.label}
+                  </Badge>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Hash className="h-3 w-3" />
+                    {task.id}
+                  </div>
+                </div>
+
+                {/* Title */}
+                <div className="space-y-2">
+                  {isEditingTitle ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        className="text-3xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
+                        onBlur={handleTitleSave}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleTitleSave();
+                          if (e.key === 'Escape') {
+                            setEditedTitle(task.title);
+                            setIsEditingTitle(false);
+                          }
+                        }}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <h1 
+                      className="text-3xl font-bold cursor-pointer hover:bg-muted/50 p-2 -m-2 rounded-none transition-colors"
+                      onClick={() => setIsEditingTitle(true)}
+                    >
+                      {task.title}
+                    </h1>
+                  )}
+                  
+                  {task.description && (
+                    <p className="text-lg text-muted-foreground leading-relaxed">
+                      {task.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Meta Information */}
+                <div className="flex flex-wrap gap-6 text-sm">
+                  {task.project && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{task.project.title}</span>
+                    </div>
+                  )}
+                  
+                  {task.assignedTo && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>Assigned to {task.assignedTo.firstName} {task.assignedTo.lastName}</span>
+                    </div>
+                  )}
+                  
+                  {task.dueDate && (
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <span className={new Date(task.dueDate) < new Date() ? 'text-red-600 font-medium' : ''}>
+                        Due {formatDate(task.dueDate)}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {task.estimatedHours && (
+                    <div className="flex items-center gap-2">
+                      <Timer className="h-4 w-4 text-muted-foreground" />
+                      <span>{task.estimatedHours}h estimated</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tags */}
+                {task.tags && (
+                  <div className="flex flex-wrap gap-2">
+                    {task.tags.split(',').map((tag, index) => (
+                      <Badge key={index} variant="secondary" className="rounded-none text-xs">
+                        <Tag className="h-3 w-3 mr-1" />
+                        {tag.trim()}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Task Header */}
-            <div className="space-y-6">
-              {/* Status and Priority */}
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-none border ${currentStatus.bg} ${currentStatus.color}`}>
-                  <StatusIcon className="h-4 w-4" />
-                </div>
-                <Select value={task.status || 'TODO'} onValueChange={handleStatusChange}>
-                  <SelectTrigger className="w-auto border-none bg-transparent p-0 h-auto focus:ring-0 text-sm font-medium">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none">
-                    <SelectItem value="TODO">To Do</SelectItem>
-                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                    <SelectItem value="IN_REVIEW">In Review</SelectItem>
-                    <SelectItem value="DONE">Done</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Separator orientation="vertical" className="h-4" />
-                <Badge variant="outline" className={`rounded-none ${currentPriority.color}`}>
-                  <span className="mr-1">{currentPriority.icon}</span>
-                  {currentPriority.label}
-                </Badge>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Hash className="h-3 w-3" />
-                  {task.id}
-                </div>
-              </div>
-
-              {/* Title */}
-              <div className="space-y-2">
-                {isEditingTitle ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={editedTitle}
-                      onChange={(e) => setEditedTitle(e.target.value)}
-                      className="text-3xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
-                      onBlur={handleTitleSave}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleTitleSave();
-                        if (e.key === 'Escape') {
-                          setEditedTitle(task.title);
-                          setIsEditingTitle(false);
-                        }
-                      }}
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <h1 
-                    className="text-3xl font-bold cursor-pointer hover:bg-muted/50 p-2 -m-2 rounded-none transition-colors"
-                    onClick={() => setIsEditingTitle(true)}
-                  >
-                    {task.title}
-                  </h1>
-                )}
-                
-                {task.description && (
-                  <p className="text-lg text-muted-foreground leading-relaxed">
-                    {task.description}
-                  </p>
-                )}
-              </div>
-
-              {/* Meta Information */}
-              <div className="flex flex-wrap gap-6 text-sm">
-                {task.project && (
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{task.project.title}</span>
-                  </div>
-                )}
-                
-                {task.assignedTo && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>Assigned to {task.assignedTo.firstName} {task.assignedTo.lastName}</span>
-                  </div>
-                )}
-                
-                {task.dueDate && (
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                    <span className={new Date(task.dueDate) < new Date() ? 'text-red-600 font-medium' : ''}>
-                      Due {formatDate(task.dueDate)}
-                    </span>
-                  </div>
-                )}
-                
-                {task.estimatedHours && (
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-4 w-4 text-muted-foreground" />
-                    <span>{task.estimatedHours}h estimated</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Tags */}
-              {task.tags && (
-                <div className="flex flex-wrap gap-2">
-                  {task.tags.split(',').map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="rounded-none text-xs">
-                      <Tag className="h-3 w-3 mr-1" />
-                      {tag.trim()}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Comments Section */}
-              <div className="lg:col-span-2 space-y-6">
-                <div className="space-y-4">
+            {/* Main Content with Sticky Sidebar */}
+            <div className="flex gap-8">
+              {/* Main Content Area - Scrollable */}
+              <div className="flex-1 px-6 pb-6">
+                {/* Comments Section */}
+                <div className="space-y-6">
+                  <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5" />
                     <h2 className="text-lg font-semibold">Comments</h2>
                     <Badge variant="secondary" className="rounded-none text-xs">
-                      {notes.length}
+                      {comments.length}
                     </Badge>
                   </div>
 
@@ -571,24 +702,33 @@ export default function TaskDetailPage() {
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8 rounded-none">
                         <AvatarFallback className="rounded-none text-xs">
-                          {getInitials(user?.firstName || 'Y', user?.lastName || 'U')}
+                          {getInitials(user?.email?.charAt(0) || 'U', user?.email?.charAt(1) || 'S')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-3">
                         <Textarea
                           placeholder="Add a comment..."
-                          value={newNote}
-                          onChange={(e) => setNewNote(e.target.value)}
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
                           className="min-h-[80px] rounded-none border-0 bg-background"
                         />
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Paperclip className="h-3 w-3" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              // For new comments, we'll need to create the comment first
+                              // For now, just show the attach files option
+                              toast.info('Create the comment first, then attach files to it')
+                            }}
+                            className="text-xs text-muted-foreground p-0 h-auto"
+                          >
+                            <Paperclip className="h-3 w-3 mr-1" />
                             <span>Attach files</span>
-                          </div>
+                          </Button>
                           <Button 
-                            onClick={handleAddNote}
-                            disabled={!newNote.trim()}
+                            onClick={handleAddComment}
+                            disabled={!newComment.trim()}
                             size="sm"
                             className="rounded-none"
                           >
@@ -602,102 +742,278 @@ export default function TaskDetailPage() {
 
                   {/* Comments List */}
                   <div className="space-y-4">
-                    {notes.map((note) => (
-                      <div key={note.id} className="flex gap-3 p-4 hover:bg-muted/20 rounded-none transition-colors">
-                        <Avatar className="h-8 w-8 rounded-none">
-                          <AvatarFallback className="rounded-none text-xs">
-                            {getInitials(note.author.firstName, note.author.lastName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">
-                              {note.author.firstName} {note.author.lastName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatRelativeDate(note.createdAt)}
-                            </span>
-                          </div>
+                    {comments.map((comment) => {
+                      // If comment author ID is 1 (default), show current Supabase user
+                      const isCurrentUser = comment.author.id === 1;
+                      const displayName = isCurrentUser 
+                        ? (user?.email?.split('@')[0] || 'You')
+                        : `${comment.author.firstName} ${comment.author.lastName}`;
+                      const initials = isCurrentUser
+                        ? getInitials(user?.email?.charAt(0) || 'U', user?.email?.charAt(1) || 'S')
+                        : getInitials(comment.author.firstName, comment.author.lastName);
+
+                      return (
+                        <div key={comment.id} className="flex gap-3 p-4 hover:bg-muted/20 rounded-none transition-colors">
+                          <Avatar className="h-8 w-8 rounded-none">
+                            <AvatarFallback className="rounded-none text-xs">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">
+                                {displayName}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatRelativeDate(comment.createdAt)}
+                              </span>
+                            </div>
                           <div className="text-sm leading-relaxed">
-                            {note.content}
+                            {comment.content}
+                          </div>
+                          
+                          {/* Comment attachments */}
+                          {comment.attachments && comment.attachments.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              <div className="text-xs text-muted-foreground">
+                                {comment.attachments.length} attachment{comment.attachments.length !== 1 ? 's' : ''}
+                              </div>
+                              <div className="space-y-1">
+                                {comment.attachments.map((attachment) => (
+                                  <div key={attachment.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded border">
+                                    <div className="flex-shrink-0">
+                                      {attachment.fileType.startsWith('image/') ? (
+                                        <ImageIcon className="h-4 w-4 text-blue-500" />
+                                      ) : attachment.fileType.includes('pdf') ? (
+                                        <FileTextIcon className="h-4 w-4 text-red-500" />
+                                      ) : (
+                                        <FileIcon className="h-4 w-4 text-gray-500" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <a 
+                                        href={attachment.fileUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-xs font-medium hover:underline truncate block"
+                                      >
+                                        {attachment.fileName}
+                                      </a>
+                                      <div className="text-xs text-muted-foreground">
+                                        {(attachment.fileSize / 1024).toFixed(1)} KB
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Attach file to comment */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setCommentFileUpload(comment.id)}
+                              className="text-xs text-muted-foreground p-0 h-auto"
+                            >
+                              <Paperclip className="h-3 w-3 mr-1" />
+                              <span>Attach file</span>
+                            </Button>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
+                  
+                  {/* Comment File Upload */}
+                  {commentFileUpload && (
+                    <div className="mt-4 p-4 border rounded-none bg-muted/20">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-sm font-medium">
+                          Attach file to comment
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCommentFileUpload(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <FileUpload 
+                        onFileUploaded={handleCommentFileUpload}
+                        maxFileSize={10 * 1024 * 1024} // 10MB
+                        acceptedTypes={['image/*', 'application/pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx']}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Attachments Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Paperclip className="h-5 w-5" />
+                      <h2 className="text-lg font-semibold">Attachments</h2>
+                      <Badge variant="secondary" className="rounded-none text-xs">
+                        {files.length}
+                      </Badge>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowFileUpload(!showFileUpload)}
+                      className="rounded-none"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add File
+                    </Button>
+                  </div>
+
+                  {/* File Upload */}
+                  {showFileUpload && (
+                    <div className="p-4 border rounded-none bg-muted/20">
+                      <FileUpload 
+                        onFileUploaded={handleFileUpload}
+                        maxFileSize={10 * 1024 * 1024} // 10MB
+                        acceptedTypes={['image/*', 'application/pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx']}
+                      />
+                    </div>
+                  )}
+
+                  {/* Files List */}
+                  <div className="space-y-3">
+                    {files.map((file) => (
+                      <div key={file.id} className="flex items-center gap-3 p-3 border rounded-none hover:bg-muted/20 transition-colors">
+                                                 <div className="flex-shrink-0">
+                           {file.fileType.startsWith('image/') ? (
+                             <ImageIcon className="h-5 w-5 text-blue-500" />
+                           ) : file.fileType.includes('pdf') ? (
+                             <FileTextIcon className="h-5 w-5 text-red-500" />
+                           ) : (
+                             <FileIcon className="h-5 w-5 text-gray-500" />
+                           )}
+                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <a 
+                              href={file.fileUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="font-medium text-sm hover:underline truncate"
+                            >
+                              {file.fileName}
+                            </a>
+                            <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{(file.fileSize / 1024).toFixed(1)} KB</span>
+                            <span>•</span>
+                            <span>Uploaded by {file.uploadedBy.firstName} {file.uploadedBy.lastName}</span>
+                            <span>•</span>
+                            <span>{formatRelativeDate(file.createdAt)}</span>
+                          </div>
+                          {file.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{file.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {files.length === 0 && !showFileUpload && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Paperclip className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No attachments yet</p>
+                        <p className="text-xs">Click "Add File" to upload documents or images</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 </div>
               </div>
 
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {/* Activity Timeline */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-5 w-5" />
-                    <h2 className="text-lg font-semibold">Activity</h2>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {activities.map((activity, index) => (
-                      <div key={activity.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-7 w-7 rounded-none bg-muted border flex items-center justify-center">
-                            {getActivityIcon(activity.type)}
-                          </div>
-                          {index < activities.length - 1 && (
-                            <div className="w-px h-6 bg-border mt-1"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 space-y-1 min-w-0">
-                          <div className="text-sm">
-                            <span className="font-medium">
-                              {activity.author.firstName} {activity.author.lastName}
-                            </span>
-                            <span className="text-muted-foreground ml-1">
-                              {activity.description}
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatRelativeDate(activity.createdAt)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {/* Sticky Sidebar */}
+              <div className="w-80 px-6 pb-6">
+                <div className="sticky top-6 space-y-6">
+                  {/* Activity Timeline */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-5 w-5" />
+                      <h2 className="text-lg font-semibold">Activity</h2>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {activities.slice(0, 5).map((activity, index) => {
+                        // If activity author ID is 1 (default), show current Supabase user
+                        const isCurrentUser = activity.author.id === 1;
+                        const displayName = isCurrentUser 
+                          ? (user?.email?.split('@')[0] || 'You')
+                          : `${activity.author.firstName} ${activity.author.lastName}`;
 
-                {/* Task Details */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-5 w-5" />
-                    <h2 className="text-lg font-semibold">Details</h2>
+                        return (
+                          <div key={activity.id} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                              <div className="h-7 w-7 rounded-none bg-muted border flex items-center justify-center">
+                                {getActivityIcon(activity.type)}
+                              </div>
+                              {index < Math.min(activities.length, 5) - 1 && (
+                                <div className="w-px h-6 bg-border mt-1"></div>
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-1 min-w-0">
+                              <div className="text-sm">
+                                <span className="font-medium">
+                                  {displayName}
+                                </span>
+                                <span className="text-muted-foreground ml-1">
+                                  {activity.description}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatRelativeDate(activity.createdAt)}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-muted-foreground">Created</span>
-                      <span className="font-medium">{formatDate(task.createdAt || new Date().toISOString())}</span>
+
+                  {/* Task Details */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-5 w-5" />
+                      <h2 className="text-lg font-semibold">Details</h2>
                     </div>
-                    <div className="flex justify-between py-2 border-b">
-                      <span className="text-muted-foreground">Updated</span>
-                      <span className="font-medium">{formatDate(task.updatedAt || new Date().toISOString())}</span>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="text-muted-foreground">Created</span>
+                        <span className="font-medium">{formatDate(task.createdAt || new Date().toISOString())}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b">
+                        <span className="text-muted-foreground">Updated</span>
+                        <span className="font-medium">{formatDate(task.updatedAt || new Date().toISOString())}</span>
+                      </div>
+                      {task.dueDate && (
+                        <div className="flex justify-between py-2 border-b">
+                          <span className="text-muted-foreground">Due Date</span>
+                          <span className={`font-medium ${
+                            new Date(task.dueDate) < new Date() ? 'text-red-600' : ''
+                          }`}>
+                            {formatDate(task.dueDate)}
+                          </span>
+                        </div>
+                      )}
+                      {task.estimatedHours && (
+                        <div className="flex justify-between py-2 border-b">
+                          <span className="text-muted-foreground">Estimated</span>
+                          <span className="font-medium">{task.estimatedHours}h</span>
+                        </div>
+                      )}
                     </div>
-                    {task.dueDate && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-muted-foreground">Due Date</span>
-                        <span className={`font-medium ${
-                          new Date(task.dueDate) < new Date() ? 'text-red-600' : ''
-                        }`}>
-                          {formatDate(task.dueDate)}
-                        </span>
-                      </div>
-                    )}
-                    {task.estimatedHours && (
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-muted-foreground">Estimated</span>
-                        <span className="font-medium">{task.estimatedHours}h</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

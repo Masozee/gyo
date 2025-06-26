@@ -164,11 +164,17 @@ export function ProjectForm({
                 <SelectValue placeholder={loadingClients ? "Loading clients..." : "Select a client"} />
               </SelectTrigger>
               <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id.toString()}>
-                    {client.name} {client.company && `(${client.company})`}
-                  </SelectItem>
-                ))}
+                {loadingClients ? (
+                  <SelectItem value="loading" disabled>Loading clients...</SelectItem>
+                ) : clients.length === 0 ? (
+                  <SelectItem value="no-clients" disabled>No clients available</SelectItem>
+                ) : (
+                  clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id.toString()}>
+                      {client.name} {client.company && `(${client.company})`}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             {errors.clientId && (

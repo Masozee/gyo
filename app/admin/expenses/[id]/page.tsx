@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Edit, Trash2, ArrowLeft, ExternalLink } from "lucide-react"
 import { type Expense } from "@/lib/schema"
+import { useToast } from "@/hooks/use-toast"
 
 interface ExpenseDetailPageProps {
   params: Promise<{ id: string }>
@@ -15,27 +16,39 @@ interface ExpenseDetailPageProps {
 
 export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const resolvedParams = use(params)
   const [expense, setExpense] = useState<(Expense & { project?: any, user?: any }) | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchExpense()
+    loadExpense()
   }, [resolvedParams.id])
 
-  const fetchExpense = async () => {
+  const loadExpense = async () => {
+    if (!resolvedParams.id) {
+      router.push('/admin/expenses')
+      return
+    }
+
     try {
       setLoading(true)
-      const response = await fetch(`/api/expenses/${resolvedParams.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setExpense(data)
-      } else if (response.status === 404) {
-        alert('Expense not found')
-        router.push('/expenses')
-      }
-    } catch (error) {
-      console.error('Error fetching expense:', error)
+             const response = await fetch(`/api/expenses/${resolvedParams.id}`)
+       if (!response.ok) {
+         throw new Error('Failed to fetch expense')
+       }
+       const data = await response.json()
+      setExpense(data)
+    } catch (err) {
+      console.error('Failed to load expense:', err)
+      setError('Failed to load expense')
+      toast({
+        title: "Error",
+        description: "Failed to load expense details",
+        variant: "destructive",
+      })
+      router.push('/admin/expenses')
     } finally {
       setLoading(false)
     }
@@ -52,7 +65,7 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
       })
 
       if (response.ok) {
-        router.push('/expenses')
+        router.push('/admin/expenses')
       } else {
         alert('Failed to delete expense')
       }
@@ -69,8 +82,8 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -114,7 +127,7 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.push('/expenses')}
+            onClick={() => router.push('/admin/expenses')}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Expenses
@@ -129,7 +142,7 @@ export default function ExpenseDetailPage({ params }: ExpenseDetailPageProps) {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => router.push(`/expenses/${expense.id}/edit`)}
+            onClick={() => router.push(`/admin/expenses/${expense.id}/edit`)}
           >
             <Edit className="mr-2 h-4 w-4" />
             Edit

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { createEmail } from '@/lib/email-storage'
 
 // For now, use a mock user ID. In a real app, this would come from authentication

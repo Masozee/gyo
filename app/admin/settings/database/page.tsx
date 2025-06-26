@@ -27,14 +27,19 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 
 export default function DatabaseSettingsPage() {
-  const [dbProvider, setDbProvider] = React.useState("postgresql")
+  const [dbProvider, setDbProvider] = React.useState("supabase")
   const [dbHost, setDbHost] = React.useState("localhost")
   const [dbPort, setDbPort] = React.useState("5432")
   const [dbName, setDbName] = React.useState("")
   const [dbUser, setDbUser] = React.useState("")
   const [dbPassword, setDbPassword] = React.useState("")
-  const [dbUrl, setDbUrl] = React.useState("")
+  const [dbUrl, setDbUrl] = React.useState("https://vvzhwzzotfqbfvivjgyv.supabase.co")
   const [sslEnabled, setSslEnabled] = React.useState(true)
+  
+  // Supabase Settings
+  const [supabaseUrl, setSupabaseUrl] = React.useState("https://vvzhwzzotfqbfvivjgyv.supabase.co")
+  const [supabaseAnonKey, setSupabaseAnonKey] = React.useState("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2emh3enpvdGZxYmZ2aXZqZ3l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA4NDI1NDgsImV4cCI6MjA2NjQxODU0OH0.YdPn4BYp5Rt5ETeP7MeWWySPDuPPgMWNFLN4X8qJ8So")
+  const [supabaseServiceKey, setSupabaseServiceKey] = React.useState("")
   
   // Backup Settings
   const [autoBackupEnabled, setAutoBackupEnabled] = React.useState(false)
@@ -179,7 +184,46 @@ export default function DatabaseSettingsPage() {
                 </Select>
               </div>
 
-              {dbProvider !== "sqlite" && (
+              {dbProvider === "supabase" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="supabaseUrl">Supabase Project URL</Label>
+                    <Input
+                      id="supabaseUrl"
+                      value={supabaseUrl}
+                      onChange={(e) => setSupabaseUrl(e.target.value)}
+                      placeholder="https://your-project.supabase.co"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="supabaseAnonKey">Supabase Anon Key</Label>
+                    <Input
+                      id="supabaseAnonKey"
+                      type="password"
+                      value={supabaseAnonKey}
+                      onChange={(e) => setSupabaseAnonKey(e.target.value)}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="supabaseServiceKey">Supabase Service Role Key (Optional)</Label>
+                    <Input
+                      id="supabaseServiceKey"
+                      type="password"
+                      value={supabaseServiceKey}
+                      onChange={(e) => setSupabaseServiceKey(e.target.value)}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Required for admin operations and bypassing RLS
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {dbProvider !== "sqlite" && dbProvider !== "supabase" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

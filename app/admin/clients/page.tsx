@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { ClientForm } from "@/components/client-form"
 
 interface Client {
   id: number
@@ -70,6 +71,8 @@ export default function ClientsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [clientToDelete, setClientToDelete] = useState<number | null>(null)
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
+  const [showClientForm, setShowClientForm] = useState(false)
+  const [clientToEdit, setClientToEdit] = useState<Client | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -252,6 +255,63 @@ export default function ClientsPage() {
     }
   }
 
+  const handleClientSubmit = async (clientData: any) => {
+    try {
+      const isEdit = !!clientToEdit
+      const url = isEdit ? `/api/clients/${clientToEdit.id}` : '/api/clients'
+      const method = isEdit ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(clientData),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${isEdit ? 'update' : 'create'} client`)
+      }
+      
+      const savedClient = await response.json()
+      
+      if (isEdit) {
+        setClients(clients.map(client => 
+          client.id === clientToEdit.id ? savedClient : client
+        ))
+        toast({
+          title: "Success",
+          description: "Client updated successfully"
+        })
+      } else {
+        setClients([...clients, savedClient])
+        toast({
+          title: "Success",
+          description: "Client created successfully"
+        })
+      }
+      
+      setShowClientForm(false)
+      setClientToEdit(null)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save client",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const openClientForm = (client?: Client) => {
+    setClientToEdit(client || null)
+    setShowClientForm(true)
+  }
+
+  const closeClientForm = () => {
+    setShowClientForm(false)
+    setClientToEdit(null)
+  }
+
   const exportToCSV = () => {
     const headers = ['Name', 'Email', 'Phone', 'Company', 'Address', 'City', 'State', 'Status', 'Created']
     const csvData = filteredClients.map(client => [
@@ -333,7 +393,7 @@ export default function ClientsPage() {
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button>
+          <Button onClick={() => openClientForm()}>
             <Plus className="mr-2 h-4 w-4" />
             Add Client
           </Button>
@@ -508,7 +568,7 @@ export default function ClientsPage() {
                       }
                     </div>
                     {!searchQuery && statusFilter === 'all' && (
-                      <Button className="mt-2">
+                      <Button className="mt-2" onClick={() => openClientForm()}>
                         <Plus className="mr-2 h-4 w-4" />
                         Add Client
                       </Button>
@@ -613,7 +673,7 @@ export default function ClientsPage() {
                           <Eye className="mr-2 h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openClientForm(client)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
@@ -962,6 +1022,22 @@ export default function ClientsPage() {
               </Card>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Form Dialog */}
+      <Dialog open={showClientForm} onOpenChange={closeClientForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              {clientToEdit ? 'Edit Client' : 'Add New Client'}
+            </DialogTitle>
+          </DialogHeader>
+          <ClientForm
+            initialData={clientToEdit}
+            onSubmit={handleClientSubmit}
+            onCancel={closeClientForm}
+          />
         </DialogContent>
       </Dialog>
     </div>

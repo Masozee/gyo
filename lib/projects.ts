@@ -1,5 +1,5 @@
 import { eq, like, or, desc, and } from 'drizzle-orm';
-import { db } from './db';
+import { db } from './db-server';
 import { projects, clients, users, type Project, type NewProject } from './schema';
 
 // Get all projects with optional search and filters

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { config } from "@/lib/config"
+import { supabase } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -44,31 +44,49 @@ export function RegisterForm({
     }
 
     try {
-      const response = await fetch(`${config.apiUrl}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          username: formData.username,
-        }),
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            username: formData.username
+          }
+        }
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
-        // Store user data in localStorage
-        localStorage.setItem('user', JSON.stringify(data.user))
-        router.push('/admin/dashboard')
-      } else {
-        setError(data.error || 'Registration failed')
+      if (error) {
+        setError(error.message)
+        return
       }
-    } catch {
-      setError('Network error. Please try again.')
+
+      if (data.user) {
+        if (data.session) {
+          // User is automatically signed in
+          const userData = {
+            id: data.user.id,
+            email: data.user.email!,
+            emailVerified: data.user.email_confirmed_at ? true : false,
+            createdAt: data.user.created_at!,
+            updatedAt: data.user.updated_at!
+          }
+          localStorage.setItem('user', JSON.stringify(userData))
+          localStorage.setItem('session', JSON.stringify({
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+            expiresAt: data.session.expires_at
+          }))
+          router.push('/admin/dashboard')
+        } else {
+          // Email confirmation required
+          setError('Please check your email and click the confirmation link to complete registration.')
+        }
+      } else {
+        setError('Registration failed. Please try again.')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Network error. Please try again.')
     } finally {
       setIsLoading(false)
     }

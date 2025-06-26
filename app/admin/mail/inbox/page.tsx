@@ -3,6 +3,7 @@
 import * as React from "react"
 import { EmailList } from "@/components/email-list"
 import { EmailToolbar } from "@/components/email-toolbar"
+import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 
 interface Email {
@@ -20,16 +21,48 @@ interface Email {
 }
 
 export default function InboxPage() {
+  const { user, isAuthenticated } = useAuth()
   const [selectedEmails, setSelectedEmails] = React.useState<string[]>([])
   const [emails, setEmails] = React.useState<Email[]>([])
   const [loading, setLoading] = React.useState(true)
   const [unreadCount, setUnreadCount] = React.useState(0)
 
+  // Get auth token from localStorage
+  const getAuthToken = React.useCallback(() => {
+    const session = localStorage.getItem('session')
+    if (session) {
+      try {
+        const sessionData = JSON.parse(session)
+        return sessionData.accessToken
+      } catch (error) {
+        console.error('Error parsing session:', error)
+      }
+    }
+    return null
+  }, [])
+
   // Fetch emails from API
   const fetchEmails = React.useCallback(async () => {
+    if (!isAuthenticated) return
+    
     try {
       setLoading(true)
-      const response = await fetch('/api/mail/emails?folder=inbox')
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
+      const response = await fetch('/api/mail/emails?folder=inbox', { headers })
+      
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        return
+      }
+      
       if (!response.ok) throw new Error('Failed to fetch emails')
       
       const data = await response.json()
@@ -44,7 +77,7 @@ export default function InboxPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isAuthenticated, getAuthToken])
 
   React.useEffect(() => {
     fetchEmails()
@@ -67,16 +100,32 @@ export default function InboxPage() {
   }
 
   const updateEmails = async (action: string, value?: any) => {
+    if (!isAuthenticated) return
+    
     try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
       const response = await fetch('/api/mail/emails', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           emailIds: selectedEmails,
           action,
           value
         })
       })
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        return
+      }
 
       if (!response.ok) throw new Error(`Failed to ${action} emails`)
       

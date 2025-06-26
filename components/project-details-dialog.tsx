@@ -71,9 +71,9 @@ export function ProjectDetailsDialog({
 }: ProjectDetailsDialogProps) {
   if (!project) return null;
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString();
+  const formatDate = (date?: string | Date | null) => {
+    if (!date) return 'Not set';
+    return new Date(date).toLocaleDateString();
   };
 
   const formatCurrency = (amount?: number | null) => {

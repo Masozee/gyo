@@ -73,7 +73,7 @@ export function TaskCard({ task, onEdit, onDelete, isDragging = false }: TaskCar
     if ((e.target as HTMLElement).closest('[data-dropdown-trigger], button')) {
       return;
     }
-    router.push(`/tasks/${task.id}`);
+    router.push(`/admin/tasks/${task.id}`);
   };
 
   return (
@@ -115,7 +115,7 @@ export function TaskCard({ task, onEdit, onDelete, isDragging = false }: TaskCar
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push(`/tasks/${task.id}`)}>
+                <DropdownMenuItem onClick={() => router.push(`/admin/tasks/${task.id}`)}>
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View Details
                 </DropdownMenuItem>

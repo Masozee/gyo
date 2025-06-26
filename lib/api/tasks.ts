@@ -129,4 +129,119 @@ export async function updateTaskStatus(id: number, status: string): Promise<Task
   
   const data = await response.json();
   return data;
+}
+
+// Get task comments
+export async function getTaskComments(taskId: number) {
+  const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/comments`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch task comments: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data;
+}
+
+// Create task comment
+export async function createTaskComment(taskId: number, content: string, authorId: number, isInternal: boolean = false) {
+  const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ content, authorId, isInternal }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Failed to create comment: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data;
+}
+
+// Get task files
+export async function getTaskFiles(taskId: number) {
+  const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/files`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch task files: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data;
+}
+
+// Upload task file
+export async function uploadTaskFile(
+  taskId: number, 
+  projectId: number, 
+  uploadedById: number, 
+  fileName: string, 
+  fileUrl: string, 
+  fileSize: number, 
+  fileType: string, 
+  description?: string
+) {
+  const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/files`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      projectId, 
+      uploadedById, 
+      fileName, 
+      fileUrl, 
+      fileSize, 
+      fileType, 
+      description 
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Failed to upload file: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data;
+}
+
+// Upload file attached to a comment
+export async function uploadCommentFile(
+  commentId: number,
+  projectId: number, 
+  uploadedById: number, 
+  fileName: string, 
+  fileUrl: string, 
+  fileSize: number, 
+  fileType: string, 
+  description?: string
+) {
+  const response = await fetch(`${API_BASE_URL}/comments/${commentId}/files`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      projectId, 
+      uploadedById, 
+      fileName, 
+      fileUrl, 
+      fileSize, 
+      fileType, 
+      description 
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Failed to upload comment file: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data;
 } 

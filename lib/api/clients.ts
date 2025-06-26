@@ -5,12 +5,12 @@ const API_BASE_URL = config.apiUrl;
 
 // Get all clients with optional search
 export async function fetchClients(search?: string): Promise<Client[]> {
-  const url = new URL(`${API_BASE_URL}/clients`);
+  let url = `${API_BASE_URL}/clients`;
   if (search) {
-    url.searchParams.set('search', search);
+    url += `?search=${encodeURIComponent(search)}`;
   }
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url);
   
   if (!response.ok) {
     throw new Error(`Failed to fetch clients: ${response.statusText}`);

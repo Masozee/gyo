@@ -176,8 +176,10 @@ curl -X PUT http://localhost:3001/users/1 \
 NEXT_PUBLIC_API_URL=http://localhost:3001
 API_PORT=3001
 
-# Database
-DATABASE_URL=file:local.db
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+DATABASE_URL=postgresql://postgres:password@db.project.supabase.co:5432/postgres
 ```
 
 ### API Configuration
@@ -212,6 +214,22 @@ npm run db:studio    # Open Drizzle Studio
 # Other
 npm run lint         # Run ESLint
 ```
+
+## 🚀 Deployment
+
+### Vercel Deployment
+This application is optimized for Vercel deployment with:
+- Edge Runtime for all API routes
+- Automatic builds and deployments
+- Environment variable management
+- Built-in CDN and global distribution
+
+### Supabase Integration
+- PostgreSQL database with automatic backups
+- Built-in authentication and user management
+- Real-time subscriptions
+- Row Level Security (RLS)
+- Automatic API generation
 
 ## 🚀 Why Hono?
 

@@ -1,4 +1,4 @@
-import { db } from './db'
+import { db } from './db-server'
 import { emails, emailAttachments, emailLabels, emailDrafts, type Email, type EmailAttachment, type EmailLabel, type EmailDraft } from './schema'
 import { eq, and, or, desc, like, sql, inArray } from 'drizzle-orm'
 
@@ -55,8 +55,8 @@ export async function createEmail(emailData: {
     category: emailData.category,
     providerData: emailData.providerData ? JSON.stringify(emailData.providerData) : null,
     deliveryStatus: emailData.deliveryStatus,
-    sentAt: emailData.sentAt,
-    receivedAt: emailData.receivedAt || new Date().toISOString(),
+    sentAt: emailData.sentAt ? new Date(emailData.sentAt) : null,
+    receivedAt: emailData.receivedAt ? new Date(emailData.receivedAt) : new Date(),
     hasAttachments: emailData.hasAttachments || false,
     attachmentCount: emailData.attachmentCount || 0,
     inReplyTo: emailData.inReplyTo,

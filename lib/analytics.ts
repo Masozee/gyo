@@ -1,4 +1,4 @@
-import { db } from './db'
+import { db } from './db-server'
 import { pageViews, sessions, apiRequests, dailyStats, activeVisitors } from './schema'
 import { eq, and, or, desc, asc, sql, gte, lte, count, avg, sum } from 'drizzle-orm'
 
@@ -95,7 +95,7 @@ export async function trackPageView(data: {
     .update(sessions)
     .set({ 
       pageCount: sql`page_count + 1`,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
       exitPage: data.path
     })
     .where(eq(sessions.id, data.sessionId))
@@ -146,7 +146,7 @@ export async function trackSession(data: {
     await db
       .update(sessions)
       .set({ 
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
         exitPage: data.landingPage
       })
       .where(eq(sessions.id, data.sessionId))
@@ -173,8 +173,8 @@ export async function trackApiRequest(data: {
 
 // Get analytics data for dashboard
 export async function getAnalyticsData(dateRange: { from: string; to: string }) {
-  const fromDate = new Date(dateRange.from).toISOString()
-  const toDate = new Date(dateRange.to).toISOString()
+  const fromDate = new Date(dateRange.from)
+  const toDate = new Date(dateRange.to)
 
   // Get total sessions and page views
   const [sessionStats] = await db
@@ -306,8 +306,8 @@ export async function getAnalyticsData(dateRange: { from: string; to: string }) 
 
 // Get API analytics
 export async function getApiAnalytics(dateRange: { from: string; to: string }) {
-  const fromDate = new Date(dateRange.from).toISOString()
-  const toDate = new Date(dateRange.to).toISOString()
+  const fromDate = new Date(dateRange.from)
+  const toDate = new Date(dateRange.to)
 
   // Get total API requests
   const [requestStats] = await db
@@ -390,12 +390,12 @@ export async function updateActiveVisitor(data: {
 }) {
   await db.insert(activeVisitors).values({
     ...data,
-    lastSeen: new Date().toISOString(),
+    lastSeen: new Date(),
   }).onConflictDoUpdate({
     target: activeVisitors.sessionId,
     set: {
       currentPage: data.currentPage,
-      lastSeen: new Date().toISOString(),
+      lastSeen: new Date(),
     }
   })
 }
@@ -403,7 +403,7 @@ export async function updateActiveVisitor(data: {
 // Get active visitors count
 export async function getActiveVisitorsCount(): Promise<number> {
   // Consider visitors active if they were seen in the last 5 minutes
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
   
   const [result] = await db
     .select({ count: count(activeVisitors.sessionId) })
@@ -415,7 +415,7 @@ export async function getActiveVisitorsCount(): Promise<number> {
 
 // Clean up old active visitors (should be run periodically)
 export async function cleanupActiveVisitors() {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
   
   await db
     .delete(activeVisitors)

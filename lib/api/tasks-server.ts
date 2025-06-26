@@ -1,6 +1,6 @@
 import { eq, like, or, desc, and } from 'drizzle-orm';
-import { db } from '../db';
-import { tasks, projects, users, type Task, type NewTask } from '../schema';
+import { db } from '../db-server';
+import { tasks, projects, users, type Task, type NewTask, projectComments, projectFiles } from '../schema';
 
 export interface TaskWithRelations extends Task {
   project?: {
@@ -82,8 +82,8 @@ export async function createTaskServer(taskData: NewTask): Promise<Task> {
   const [task] = await db.insert(tasks)
     .values({
       ...taskData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -95,7 +95,7 @@ export async function updateTaskServer(id: number, taskData: Partial<NewTask>): 
   const [updatedTask] = await db.update(tasks)
     .set({
       ...taskData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(tasks.id, id))
     .returning();
@@ -114,4 +114,205 @@ export async function deleteTaskServer(id: number): Promise<boolean> {
     console.error('Error deleting task:', error);
     return false;
   }
+}
+
+// Get task comments with author info and attachments (SERVER-SIDE)
+export async function getTaskCommentsServer(taskId: number) {
+  const comments = await db.select({
+    id: projectComments.id,
+    content: projectComments.content,
+    isInternal: projectComments.isInternal,
+    createdAt: projectComments.createdAt,
+    updatedAt: projectComments.updatedAt,
+    author: {
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    }
+  })
+  .from(projectComments)
+  .leftJoin(users, eq(projectComments.authorId, users.id))
+  .where(eq(projectComments.taskId, taskId))
+  .orderBy(desc(projectComments.createdAt));
+
+  // Get attachments for each comment
+  const commentsWithAttachments = await Promise.all(
+    comments.map(async (comment) => {
+      const attachments = await db.select({
+        id: projectFiles.id,
+        fileName: projectFiles.fileName,
+        fileUrl: projectFiles.fileUrl,
+        fileSize: projectFiles.fileSize,
+        fileType: projectFiles.fileType,
+        description: projectFiles.description,
+        createdAt: projectFiles.createdAt,
+      })
+      .from(projectFiles)
+      .where(eq(projectFiles.commentId, comment.id))
+      .orderBy(desc(projectFiles.createdAt));
+
+      return {
+        ...comment,
+        attachments: attachments || []
+      };
+    })
+  );
+
+  return commentsWithAttachments;
+}
+
+// Create task comment (SERVER-SIDE)
+export async function createTaskCommentServer(taskId: number, authorId: number, content: string, isInternal: boolean = false) {
+  const [comment] = await db.insert(projectComments)
+    .values({
+      taskId,
+      authorId,
+      content,
+      isInternal,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+
+  // Get the comment with author info
+  const [commentWithAuthor] = await db.select({
+    id: projectComments.id,
+    content: projectComments.content,
+    isInternal: projectComments.isInternal,
+    createdAt: projectComments.createdAt,
+    updatedAt: projectComments.updatedAt,
+    author: {
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    }
+  })
+  .from(projectComments)
+  .leftJoin(users, eq(projectComments.authorId, users.id))
+  .where(eq(projectComments.id, comment.id));
+
+  return commentWithAuthor;
+}
+
+// Get task files/attachments (SERVER-SIDE)
+export async function getTaskFilesServer(taskId: number) {
+  const files = await db.select({
+    id: projectFiles.id,
+    fileName: projectFiles.fileName,
+    fileUrl: projectFiles.fileUrl,
+    fileSize: projectFiles.fileSize,
+    fileType: projectFiles.fileType,
+    description: projectFiles.description,
+    createdAt: projectFiles.createdAt,
+    uploadedBy: {
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    }
+  })
+  .from(projectFiles)
+  .leftJoin(users, eq(projectFiles.uploadedById, users.id))
+  .where(eq(projectFiles.taskId, taskId))
+  .orderBy(desc(projectFiles.createdAt));
+
+  return files;
+}
+
+// Upload task file (SERVER-SIDE)
+export async function uploadTaskFileServer(
+  taskId: number, 
+  projectId: number, 
+  uploadedById: number, 
+  fileName: string, 
+  fileUrl: string, 
+  fileSize: number, 
+  fileType: string, 
+  description?: string
+) {
+  const [file] = await db.insert(projectFiles)
+    .values({
+      taskId,
+      projectId,
+      uploadedById,
+      fileName,
+      fileUrl,
+      fileSize,
+      fileType,
+      description,
+      createdAt: new Date(),
+    })
+    .returning();
+
+  // Get the file with uploader info
+  const [fileWithUploader] = await db.select({
+    id: projectFiles.id,
+    fileName: projectFiles.fileName,
+    fileUrl: projectFiles.fileUrl,
+    fileSize: projectFiles.fileSize,
+    fileType: projectFiles.fileType,
+    description: projectFiles.description,
+    createdAt: projectFiles.createdAt,
+    uploadedBy: {
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    }
+  })
+  .from(projectFiles)
+  .leftJoin(users, eq(projectFiles.uploadedById, users.id))
+  .where(eq(projectFiles.id, file.id));
+
+  return fileWithUploader;
+}
+
+// Upload file attached to a comment (SERVER-SIDE)
+export async function uploadCommentFileServer(
+  commentId: number,
+  projectId: number, 
+  uploadedById: number, 
+  fileName: string, 
+  fileUrl: string, 
+  fileSize: number, 
+  fileType: string, 
+  description?: string
+) {
+  const [file] = await db.insert(projectFiles)
+    .values({
+      commentId, // Link to comment instead of task
+      projectId,
+      uploadedById,
+      fileName,
+      fileUrl,
+      fileSize,
+      fileType,
+      description,
+      createdAt: new Date(),
+    })
+    .returning();
+
+  // Get the file with uploader info
+  const [fileWithUploader] = await db.select({
+    id: projectFiles.id,
+    fileName: projectFiles.fileName,
+    fileUrl: projectFiles.fileUrl,
+    fileSize: projectFiles.fileSize,
+    fileType: projectFiles.fileType,
+    description: projectFiles.description,
+    createdAt: projectFiles.createdAt,
+    uploadedBy: {
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      email: users.email,
+    }
+  })
+  .from(projectFiles)
+  .leftJoin(users, eq(projectFiles.uploadedById, users.id))
+  .where(eq(projectFiles.id, file.id));
+
+  return fileWithUploader;
 } 

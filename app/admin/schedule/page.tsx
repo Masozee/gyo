@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -45,104 +45,51 @@ import {
 import { cn } from "@/lib/utils"
 import { CalendarView } from "@/components/calendar-view"
 import { EventForm } from "@/components/event-form"
+import { getEvents, createEvent, updateEvent, deleteEvent, EventWithRelations, EventFormData } from "@/lib/api/events"
+import { toast } from "sonner"
 
-// Sample event data
-const generateSampleEvents = () => {
-  const events = [
-    {
-      id: 1,
-      title: "Client Meeting - Project Review",
-      description: "Review project progress with Tech Solutions Inc",
-      date: "2024-12-06",
-      time: "10:00 AM",
-      duration: "1h",
-      type: "meeting",
-      location: "Conference Room A",
-      attendees: ["John Doe", "Jane Smith", "Client Team"],
-      status: "confirmed",
-      color: "blue"
-    },
-    {
-      id: 2,
-      title: "Design Sprint Planning",
-      description: "Plan the next design sprint for the mobile app",
-      date: "2024-12-06",
-      time: "2:00 PM",
-      duration: "2h",
-      type: "meeting",
-      location: "Design Studio",
-      attendees: ["Design Team"],
-      status: "confirmed",
-      color: "green"
-    },
-    {
-      id: 3,
-      title: "Project Deadline - Brand Identity",
-      description: "Final delivery for Creative Agency project",
-      date: "2024-12-10",
-      time: "End of day",
-      duration: undefined,
-      type: "deadline",
-      location: undefined,
-      attendees: [],
-      status: "upcoming",
-      color: "red"
-    },
-    {
-      id: 4,
-      title: "Presentation - Mobile App Demo",
-      description: "Present mobile app prototype to StartupCo",
-      date: "2024-12-12",
-      time: "2:00 PM",
-      duration: "1h 30m",
-      type: "presentation",
-      location: "Virtual - Zoom",
-      attendees: ["Development Team", "StartupCo Team"],
-      status: "confirmed",
-      color: "purple"
-    },
-    {
-      id: 5,
-      title: "Team Standup",
-      description: "Daily team synchronization",
-      date: "2024-12-07",
-      time: "9:00 AM",
-      duration: "30m",
-      type: "meeting",
-      location: "Virtual - Teams",
-      attendees: ["Full Team"],
-      status: "confirmed",
-      color: "blue"
-    },
-    {
-      id: 6,
-      title: "Code Review Session",
-      description: "Review authentication implementation",
-      date: "2024-12-08",
-      time: "3:00 PM",
-      duration: "1h",
-      type: "meeting",
-      location: "Development Room",
-      attendees: ["Dev Team"],
-      status: "confirmed",
-      color: "green"
-    },
-    {
-      id: 7,
-      title: "Client Call - Budget Discussion",
-      description: "Discuss budget adjustments with Creative Agency",
-      date: "2024-12-09",
-      time: "11:00 AM",
-      duration: "45m",
-      type: "call",
-      location: "Phone",
-      attendees: ["Project Manager", "Client"],
-      status: "tentative",
-      color: "amber"
-    }
-  ]
+// Helper function to convert event format for display
+const convertEventForDisplay = (event: EventWithRelations) => ({
+  id: event.id,
+  title: event.title,
+  description: event.description,
+  date: event.startDate,
+  time: event.startTime ? formatTime(event.startTime) : event.allDay ? 'All day' : 'No time set',
+  duration: event.endTime && event.startTime ? calculateDuration(event.startTime, event.endTime) : undefined,
+  type: event.type,
+  location: event.isVirtual ? event.meetingUrl : event.location,
+  attendees: event.attendees ? (typeof event.attendees === 'string' ? JSON.parse(event.attendees) : event.attendees) : [],
+  status: event.status,
+  color: event.color || 'blue',
+  project: event.project,
+  client: event.client,
+  allDay: event.allDay,
+  isVirtual: event.isVirtual,
+  priority: event.priority,
+})
 
-  return events
+const formatTime = (time: string) => {
+  const [hours, minutes] = time.split(':')
+  const hour = parseInt(hours)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour % 12 || 12
+  return `${displayHour}:${minutes} ${ampm}`
+}
+
+const calculateDuration = (startTime: string, endTime: string) => {
+  const start = new Date(`2000-01-01T${startTime}`)
+  const end = new Date(`2000-01-01T${endTime}`)
+  const diffMs = end.getTime() - start.getTime()
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+  
+  if (diffHours > 0 && diffMinutes > 0) {
+    return `${diffHours}h ${diffMinutes}m`
+  } else if (diffHours > 0) {
+    return `${diffHours}h`
+  } else {
+    return `${diffMinutes}m`
+  }
 }
 
 type ViewMode = 'calendar' | 'list'
@@ -302,12 +249,38 @@ export default function SchedulePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [timeView, setTimeView] = useState<TimeView>('monthly')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [events, setEvents] = useState(generateSampleEvents())
+  const [events, setEvents] = useState<any[]>([])
+  const [eventsLoading, setEventsLoading] = useState(true)
   const [showEventForm, setShowEventForm] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<EventWithRelations | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     requireAuth()
   }, [requireAuth])
+
+  // Load events
+  const loadEvents = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      setEventsLoading(true)
+      const eventsData = await getEvents(user.id)
+      const displayEvents = eventsData.map(convertEventForDisplay)
+      setEvents(displayEvents)
+    } catch (error) {
+      console.error('Failed to load events:', error)
+      toast.error('Failed to load events')
+    } finally {
+      setEventsLoading(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      loadEvents()
+    }
+  }, [user, loadEvents])
 
   if (loading) {
     return (
@@ -369,8 +342,50 @@ export default function SchedulePage() {
     setCurrentDate(new Date())
   }
 
-  const handleAddEvent = (eventData: any) => {
-    setEvents(prev => [...prev, eventData])
+  const handleCreateEvent = async (eventData: EventFormData) => {
+    if (!user) return
+    
+    try {
+      setIsSubmitting(true)
+      await createEvent({ ...eventData, userId: user.id })
+      toast.success('Event created successfully')
+      loadEvents()
+    } catch (error) {
+      console.error('Failed to create event:', error)
+      toast.error('Failed to create event')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleUpdateEvent = async (eventData: EventFormData) => {
+    if (!selectedEvent) return
+    
+    try {
+      setIsSubmitting(true)
+      await updateEvent(selectedEvent.id, eventData)
+      toast.success('Event updated successfully')
+      setSelectedEvent(null)
+      loadEvents()
+    } catch (error) {
+      console.error('Failed to update event:', error)
+      toast.error('Failed to update event')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: number) => {
+    if (!confirm('Are you sure you want to delete this event?')) return
+    
+    try {
+      await deleteEvent(eventId)
+      toast.success('Event deleted successfully')
+      loadEvents()
+    } catch (error) {
+      console.error('Failed to delete event:', error)
+      toast.error('Failed to delete event')
+    }
   }
 
   return (
@@ -479,8 +494,13 @@ export default function SchedulePage() {
           {/* Event Form Dialog */}
           <EventForm
             open={showEventForm}
-            onOpenChange={setShowEventForm}
-            onSubmit={handleAddEvent}
+            onOpenChange={(open) => {
+              setShowEventForm(open)
+              if (!open) setSelectedEvent(null)
+            }}
+            onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
+            initialData={selectedEvent || undefined}
+            isLoading={isSubmitting}
           />
         </div>
       </SidebarInset>

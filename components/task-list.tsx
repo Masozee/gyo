@@ -191,7 +191,7 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
     if ((e.target as HTMLElement).closest('input[type="checkbox"], button, [data-dropdown-trigger]')) {
       return;
     }
-    router.push(`/tasks/${taskId}`);
+    router.push(`/admin/tasks/${taskId}`);
   };
 
   if (tasks.length === 0) {

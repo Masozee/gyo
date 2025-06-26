@@ -16,6 +16,8 @@ import {
   Globe,
   Search,
   ExternalLink,
+  Youtube,
+  Bot,
 } from "lucide-react"
 
 const tools = [
@@ -42,6 +44,22 @@ const tools = [
     href: "/admin/tools/document-signing",
     color: "bg-purple-500",
     features: ["E-signatures", "Document tracking", "Legal compliance", "Email notifications"],
+  },
+  {
+    title: "YouTube Downloader",
+    description: "Download YouTube videos and audio in various formats and qualities with legal compliance.",
+    icon: Youtube,
+    href: "/admin/tools/youtube-downloader",
+    color: "bg-red-600",
+    features: ["Multiple formats", "Quality options", "Audio extraction", "Legal compliance"],
+  },
+  {
+    title: "Chat with Gemini AI",
+    description: "Have conversations with Google's advanced Gemini AI. Get help with coding, writing, analysis, and more.",
+    icon: Bot,
+    href: "/admin/tools/gemini-chat",
+    color: "bg-gradient-to-r from-blue-500 to-purple-600",
+    features: ["Advanced AI chat", "Conversation history", "Code assistance", "Real-time responses"],
   },
   {
     title: "Calculator",

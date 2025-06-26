@@ -1,5 +1,5 @@
 import { eq, like, or, desc, and, count } from 'drizzle-orm';
-import { db } from '../db';
+import { db } from '../db-server';
 import { projects, clients, users, tasks, type Project, type NewProject } from '../schema';
 
 export interface ProjectWithRelations extends Project {
@@ -123,8 +123,8 @@ export async function createProjectServer(projectData: NewProject): Promise<Proj
   const [project] = await db.insert(projects)
     .values({
       ...projectData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning();
   
@@ -136,7 +136,7 @@ export async function updateProjectServer(id: number, projectData: Partial<NewPr
   const [updatedProject] = await db.update(projects)
     .set({
       ...projectData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(projects.id, id))
     .returning();
@@ -149,7 +149,7 @@ export async function updateProjectProgressServer(id: number, progressPercentage
   const [updatedProject] = await db.update(projects)
     .set({
       progressPercentage,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(projects.id, id))
     .returning();

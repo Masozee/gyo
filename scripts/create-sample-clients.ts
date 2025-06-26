@@ -1,12 +1,14 @@
-import { drizzle } from 'drizzle-orm/libsql'
-import { createClient } from '@libsql/client'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import postgres from 'postgres'
 import { clients } from '../lib/schema'
 
-const client = createClient({
-  url: process.env.DATABASE_URL || 'file:local.db',
-})
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
 
-const db = drizzle(client)
+const client = postgres(databaseUrl, { prepare: false });
+const db = drizzle(client);
 
 const sampleClients = [
   {

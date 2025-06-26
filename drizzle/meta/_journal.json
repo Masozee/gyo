@@ -1,40 +1,19 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1749963204393,
-      "tag": "0000_famous_weapon_omega",
+      "version": "7",
+      "when": 1750843668979,
+      "tag": "0000_right_nico_minoru",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1750304899972,
-      "tag": "0001_equal_stark_industries",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1750774411771,
-      "tag": "0002_small_the_spike",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1750779634467,
-      "tag": "0003_whole_molecule_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1750823809971,
-      "tag": "0004_uneven_grim_reaper",
+      "version": "7",
+      "when": 1750911827837,
+      "tag": "0001_previous_whistler",
       "breakpoints": true
     }
   ]

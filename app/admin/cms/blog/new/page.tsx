@@ -140,7 +140,7 @@ export default function NewBlogPostPage() {
         metaDescription: formData.metaDescription || null,
         metaKeywords: formData.metaKeywords || null,
         isPublished: publish || formData.isPublished,
-        publishedAt: publish || formData.isPublished ? new Date().toISOString() : null,
+        publishedAt: publish || formData.isPublished ? new Date() : null,
         viewCount: 0,
         readingTime: calculateReadingTime(formData.content),
       };

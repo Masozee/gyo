@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db } from '../db-server';
 import { blogPosts, blogCategories, users, pages, portfolioItems, projects } from '../schema';
 import { eq, desc, and, like, or } from 'drizzle-orm';
 import type { 

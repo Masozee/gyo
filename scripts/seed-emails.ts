@@ -1,10 +1,11 @@
-import { db } from '../lib/db'
+import { db } from '../lib/db-server'
 import { createEmail } from '../lib/email-storage'
 
 async function seedEmails() {
   console.log('Seeding emails...')
 
   // Create some sample emails
+  const now = new Date()
   const sampleEmails = [
     {
       from: "john@example.com",
@@ -28,6 +29,7 @@ async function seedEmails() {
       isImportant: true,
       labels: ["work", "important"],
       attachmentCount: 2,
+      receivedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
       userId: 1
     },
     {
@@ -52,6 +54,7 @@ async function seedEmails() {
       isImportant: false,
       labels: ["work"],
       attachmentCount: 0,
+      receivedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
       userId: 1
     },
     {
@@ -71,6 +74,7 @@ async function seedEmails() {
       isImportant: false,
       labels: ["projects"],
       attachmentCount: 0,
+      receivedAt: new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
       userId: 1
     },
     {
@@ -96,6 +100,7 @@ async function seedEmails() {
       isImportant: false,
       labels: ["work", "projects"],
       attachmentCount: 1,
+      receivedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
       userId: 1
     },
     {
@@ -120,6 +125,7 @@ async function seedEmails() {
       isImportant: false,
       labels: ["personal"],
       attachmentCount: 0,
+      receivedAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
       userId: 1
     }
   ]

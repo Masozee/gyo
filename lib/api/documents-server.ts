@@ -1,5 +1,5 @@
 import { eq, like, or, desc, and, max } from 'drizzle-orm';
-import { db } from '../db';
+import { db } from '../db-server';
 import { documents, documentRevisions, documentComments, documentSignatures, projects, clients, users, type Document, type NewDocument, type DocumentRevision } from '../schema';
 
 export interface DocumentWithRelations extends Document {

@@ -1,4 +1,4 @@
-import { db } from '../lib/db';
+import { db } from '../lib/db-server';
 import { tasks, projects, users } from '../lib/schema';
 
 async function createSampleTasks() {

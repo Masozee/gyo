@@ -1,5 +1,5 @@
 import { eq, like, or, desc, and } from 'drizzle-orm';
-import { db } from '../db';
+import { db } from '../db-server';
 import { invoices, projects, clients, type Invoice, type NewInvoice, invoiceLineItems } from '../schema';
 
 export interface InvoiceWithRelations extends Invoice {

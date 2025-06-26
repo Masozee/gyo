@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { config } from "@/lib/config"
+import { supabase } from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,25 +25,36 @@ export function LoginForm({
     setError("")
 
     try {
-      const response = await fetch(`${config.apiUrl}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
 
-      const data = await response.json()
+      if (error) {
+        setError(error.message)
+        return
+      }
 
-      if (response.ok) {
-        // Store user data in localStorage (in production, use proper session management)
-        localStorage.setItem('user', JSON.stringify(data.user))
+      if (data.user && data.session) {
+        // Store user data and session in localStorage
+        localStorage.setItem('user', JSON.stringify({
+          id: data.user.id,
+          email: data.user.email,
+          emailVerified: data.user.email_confirmed_at ? true : false,
+          createdAt: data.user.created_at,
+          updatedAt: data.user.updated_at
+        }))
+        localStorage.setItem('session', JSON.stringify({
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+          expiresAt: data.session.expires_at
+        }))
         router.push('/admin/dashboard')
       } else {
-        setError(data.error || 'Login failed')
+        setError('Login failed. Please try again.')
       }
-    } catch {
-      setError('Network error. Please try again.')
+    } catch (err: any) {
+      setError(err.message || 'Network error. Please try again.')
     } finally {
       setIsLoading(false)
     }

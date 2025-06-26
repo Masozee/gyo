@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +70,7 @@ interface UrlAnalytics {
 }
 
 export default function UrlShortenerPage() {
+  const { user, isAuthenticated } = useAuth()
   const [originalUrl, setOriginalUrl] = useState("")
   const [customAlias, setCustomAlias] = useState("")
   const [description, setDescription] = useState("")
@@ -78,13 +80,46 @@ export default function UrlShortenerPage() {
   const [selectedUrlAnalytics, setSelectedUrlAnalytics] = useState<UrlAnalytics | null>(null)
   const [loadingAnalytics, setLoadingAnalytics] = useState(false)
 
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    const session = localStorage.getItem('session')
+    if (session) {
+      try {
+        const sessionData = JSON.parse(session)
+        return sessionData.accessToken
+      } catch (error) {
+        console.error('Error parsing session:', error)
+      }
+    }
+    return null
+  }
+
   useEffect(() => {
-    fetchUrls()
-  }, [])
+    if (isAuthenticated) {
+      fetchUrls()
+    }
+  }, [isAuthenticated])
 
   const fetchUrls = async () => {
+    if (!isAuthenticated) return
+    
     try {
-      const response = await fetch('/api/tools/urls')
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
+      const response = await fetch('/api/tools/urls', { headers })
+      
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        return
+      }
+      
       if (response.ok) {
         const data = await response.json()
         setShortenedUrls(data)
@@ -96,6 +131,11 @@ export default function UrlShortenerPage() {
   }
 
   const handleShortenUrl = async () => {
+    if (!isAuthenticated) {
+      toast.error("Please log in to shorten URLs")
+      return
+    }
+    
     if (!originalUrl.trim()) {
       toast.error("Please enter a URL to shorten")
       return
@@ -104,17 +144,29 @@ export default function UrlShortenerPage() {
     try {
       setIsLoading(true)
       
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
       const response = await fetch('/api/tools/urls', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           originalUrl,
           customAlias: customAlias || undefined,
           description: description || undefined,
         }),
       })
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        return
+      }
 
       if (!response.ok) {
         const error = await response.json()
@@ -140,10 +192,30 @@ export default function UrlShortenerPage() {
   }
 
   const handleDelete = async (id: number) => {
+    if (!isAuthenticated) {
+      toast.error("Please log in to delete URLs")
+      return
+    }
+    
     try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
       const response = await fetch(`/api/tools/urls/${id}`, {
         method: 'DELETE',
+        headers
       })
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to delete URL')
@@ -157,9 +229,29 @@ export default function UrlShortenerPage() {
   }
 
   const handleViewAnalytics = async (id: number) => {
+    if (!isAuthenticated) {
+      toast.error("Please log in to view analytics")
+      return
+    }
+    
     try {
       setLoadingAnalytics(true)
-      const response = await fetch(`/api/tools/urls/${id}/analytics`)
+      
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
+      const response = await fetch(`/api/tools/urls/${id}/analytics`, { headers })
+      
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        return
+      }
       
       if (!response.ok) {
         throw new Error('Failed to fetch analytics')

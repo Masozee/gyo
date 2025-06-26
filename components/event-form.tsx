@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,21 +21,26 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Calendar, Clock, MapPin, Users, Palette } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { EventFormData, EventWithRelations } from "@/lib/api/events"
+import { fetchClients } from "@/lib/api/clients"
+import { getProjects } from "@/lib/api/projects"
 
 interface EventFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (event: any) => void
-  initialData?: any
+  onSubmit: (event: EventFormData) => Promise<void>
+  initialData?: EventWithRelations
+  isLoading?: boolean
 }
 
 const eventTypes = [
   { value: 'meeting', label: 'Meeting' },
   { value: 'call', label: 'Phone Call' },
-  { value: 'video', label: 'Video Call' },
   { value: 'presentation', label: 'Presentation' },
   { value: 'deadline', label: 'Deadline' },
-  { value: 'reminder', label: 'Reminder' },
+  { value: 'task', label: 'Task' },
+  { value: 'appointment', label: 'Appointment' },
 ]
 
 const eventColors = [
@@ -49,50 +54,101 @@ const eventColors = [
   { value: 'cyan', label: 'Cyan', class: 'bg-cyan-500' },
 ]
 
-export function EventForm({ open, onOpenChange, onSubmit, initialData }: EventFormProps) {
-  const [formData, setFormData] = useState({
+const priorityOptions = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
+]
+
+export function EventForm({ open, onOpenChange, onSubmit, initialData, isLoading = false }: EventFormProps) {
+  const [formData, setFormData] = useState<EventFormData>({
     title: initialData?.title || '',
     description: initialData?.description || '',
-    date: initialData?.date || new Date().toISOString().split('T')[0],
-    time: initialData?.time || '09:00',
-    duration: initialData?.duration || '1h',
+    startDate: initialData?.startDate || new Date().toISOString().split('T')[0],
+    endDate: initialData?.endDate || '',
+    startTime: initialData?.startTime || '09:00',
+    endTime: initialData?.endTime || '',
+    allDay: initialData?.allDay || false,
     type: initialData?.type || 'meeting',
-    location: initialData?.location || '',
-    attendees: initialData?.attendees?.join(', ') || '',
-    color: initialData?.color || 'blue',
     status: initialData?.status || 'confirmed',
+    priority: initialData?.priority || 'medium',
+    color: initialData?.color || 'blue',
+    location: initialData?.location || '',
+    isVirtual: initialData?.isVirtual || false,
+    meetingUrl: initialData?.meetingUrl || '',
+    attendees: initialData?.attendees || '',
+    projectId: initialData?.projectId || undefined,
+    clientId: initialData?.clientId || undefined,
+    userId: initialData?.userId || 1, // Default user ID
+    reminderMinutes: initialData?.reminderMinutes || 15,
+    notes: initialData?.notes || '',
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [clients, setClients] = useState<any[]>([])
+  const [projects, setProjects] = useState<any[]>([])
+  const [loadingData, setLoadingData] = useState(true)
+
+  // Load clients and projects
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [clientsData, projectsData] = await Promise.all([
+          fetchClients(),
+          getProjects()
+        ])
+        setClients(clientsData)
+        setProjects(projectsData)
+      } catch (error) {
+        console.error('Failed to load data:', error)
+      } finally {
+        setLoadingData(false)
+      }
+    }
+
+    if (open) {
+      loadData()
+    }
+  }, [open])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    const eventData = {
-      ...formData,
-      attendees: formData.attendees.split(',').map((a: string) => a.trim()).filter(Boolean),
-      id: initialData?.id || Date.now(),
-    }
-    
-    onSubmit(eventData)
-    onOpenChange(false)
-    
-    // Reset form if it's a new event
-    if (!initialData) {
-      setFormData({
-        title: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0],
-        time: '09:00',
-        duration: '1h',
-        type: 'meeting',
-        location: '',
-        attendees: '',
-        color: 'blue',
-        status: 'confirmed',
-      })
+    try {
+      await onSubmit(formData)
+      onOpenChange(false)
+      
+      // Reset form if it's a new event
+      if (!initialData) {
+        setFormData({
+          title: '',
+          description: '',
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: '',
+          startTime: '09:00',
+          endTime: '',
+          allDay: false,
+          type: 'meeting',
+          status: 'confirmed',
+          priority: 'medium',
+          color: 'blue',
+          location: '',
+          isVirtual: false,
+          meetingUrl: '',
+          attendees: '',
+          projectId: undefined,
+          clientId: undefined,
+          userId: 1,
+          reminderMinutes: 15,
+          notes: '',
+        })
+      }
+    } catch (error) {
+      console.error('Form submission error:', error)
     }
   }
 
-  const updateFormData = (field: string, value: string) => {
+  const updateFormData = (field: keyof EventFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -127,23 +183,34 @@ export function EventForm({ open, onOpenChange, onSubmit, initialData }: EventFo
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={formData.description}
+              value={formData.description || ''}
               onChange={(e) => updateFormData('description', e.target.value)}
               placeholder="Add event description (optional)"
               rows={3}
             />
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="allDay"
+                checked={formData.allDay}
+                onCheckedChange={(checked) => updateFormData('allDay', checked)}
+              />
+              <Label htmlFor="allDay">All day event</Label>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Date *</Label>
+              <Label htmlFor="startDate">Start Date *</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="date"
+                  id="startDate"
                   type="date"
-                  value={formData.date}
-                  onChange={(e) => updateFormData('date', e.target.value)}
+                  value={formData.startDate}
+                  onChange={(e) => updateFormData('startDate', e.target.value)}
                   className="pl-10"
                   required
                 />
@@ -151,20 +218,51 @@ export function EventForm({ open, onOpenChange, onSubmit, initialData }: EventFo
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="time">Time *</Label>
+              <Label htmlFor="endDate">End Date</Label>
               <div className="relative">
-                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  id="time"
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => updateFormData('time', e.target.value)}
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate || ''}
+                  onChange={(e) => updateFormData('endDate', e.target.value)}
                   className="pl-10"
-                  required
                 />
               </div>
             </div>
           </div>
+
+          {!formData.allDay && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start Time</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={formData.startTime || ''}
+                    onChange={(e) => updateFormData('startTime', e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="endTime">End Time</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={formData.endTime || ''}
+                    onChange={(e) => updateFormData('endTime', e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -184,40 +282,94 @@ export function EventForm({ open, onOpenChange, onSubmit, initialData }: EventFo
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Duration</Label>
-              <Input
-                id="duration"
-                value={formData.duration}
-                onChange={(e) => updateFormData('duration', e.target.value)}
-                placeholder="e.g., 1h, 30m, 2h 30m"
-              />
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={formData.priority} onValueChange={(value) => updateFormData('priority', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {priorityOptions.map(priority => (
+                    <SelectItem key={priority.value} value={priority.value}>
+                      {priority.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="project">Project (Optional)</Label>
+              <Select value={formData.projectId?.toString() || ''} onValueChange={(value) => updateFormData('projectId', value ? parseInt(value) : undefined)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No project</SelectItem>
+                  {projects.map(project => (
+                    <SelectItem key={project.id} value={project.id.toString()}>
+                      {project.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="client">Client (Optional)</Label>
+              <Select value={formData.clientId?.toString() || ''} onValueChange={(value) => updateFormData('clientId', value ? parseInt(value) : undefined)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No client</SelectItem>
+                  {clients.map(client => (
+                    <SelectItem key={client.id} value={client.id.toString()}>
+                      {client.name} {client.company && `(${client.company})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="isVirtual"
+                checked={formData.isVirtual}
+                onCheckedChange={(checked) => updateFormData('isVirtual', checked)}
+              />
+              <Label htmlFor="isVirtual">Virtual meeting</Label>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location">{formData.isVirtual ? 'Meeting URL' : 'Location'}</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="location"
-                value={formData.location}
-                onChange={(e) => updateFormData('location', e.target.value)}
-                placeholder="Meeting room, address, or video link"
+                value={formData.isVirtual ? (formData.meetingUrl || '') : (formData.location || '')}
+                onChange={(e) => updateFormData(formData.isVirtual ? 'meetingUrl' : 'location', e.target.value)}
+                placeholder={formData.isVirtual ? "https://zoom.us/j/..." : "Meeting room, address"}
                 className="pl-10"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="attendees">Attendees</Label>
+            <Label htmlFor="attendees">Attendees (JSON format)</Label>
             <div className="relative">
               <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+              <Textarea
                 id="attendees"
-                value={formData.attendees}
+                value={formData.attendees || ''}
                 onChange={(e) => updateFormData('attendees', e.target.value)}
-                placeholder="Enter names separated by commas"
+                placeholder='["John Doe", "jane@example.com"] or comma separated names'
                 className="pl-10"
+                rows={2}
               />
             </div>
           </div>
@@ -244,16 +396,28 @@ export function EventForm({ open, onOpenChange, onSubmit, initialData }: EventFo
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes || ''}
+              onChange={(e) => updateFormData('notes', e.target.value)}
+              placeholder="Additional notes..."
+              rows={2}
+            />
+          </div>
+
           <DialogFooter className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button type="submit">
-              {initialData ? 'Update Event' : 'Create Event'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? 'Saving...' : (initialData ? 'Update Event' : 'Create Event')}
             </Button>
           </DialogFooter>
         </form>

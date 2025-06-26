@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db } from './db';
+import { db } from './db-server';
 import { users, type User } from './schema';
 
 // Simple password hashing (in production, use bcrypt or similar)

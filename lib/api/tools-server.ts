@@ -1,5 +1,5 @@
 import { eq, desc, and, isNotNull, sql } from 'drizzle-orm'
-import { db } from '../db'
+import { db } from '../db-server'
 import { UAParser } from 'ua-parser-js'
 import { 
   shortenedUrls, 
@@ -710,4 +710,224 @@ export async function handleUrlRedirect(shortCode: string, clientInfo: {
   })
 
   return url.originalUrl
+}
+
+// ─── YouTube Downloader Functions ───
+
+interface YouTubeVideoInfo {
+  id: string
+  title: string
+  description: string
+  thumbnail: string
+  duration: string
+  channelName: string
+  viewCount: string
+  uploadDate: string
+  formats: YouTubeFormat[]
+}
+
+interface YouTubeFormat {
+  quality: string
+  format: string
+  url: string
+  filesize?: string
+  type: 'video' | 'audio'
+}
+
+export async function getYouTubeVideoInfo(url: string): Promise<YouTubeVideoInfo | null> {
+  try {
+    // Dynamic import to avoid issues with Edge runtime
+    const ytdl = (await import('@distube/ytdl-core')).default
+    
+    // Validate URL
+    if (!ytdl.validateURL(url)) {
+      throw new Error('Invalid YouTube URL')
+    }
+
+    // Get video info
+    const info = await ytdl.getInfo(url)
+    const videoDetails = info.videoDetails
+    
+    // Extract available formats
+    const formats: YouTubeFormat[] = []
+    
+    // Add video formats
+    const videoFormats = ytdl.filterFormats(info.formats, 'videoandaudio')
+    for (const format of videoFormats) {
+      if (format.qualityLabel) {
+        formats.push({
+          quality: format.qualityLabel,
+          format: format.container || 'mp4',
+          url: `/api/tools/youtube/stream?url=${encodeURIComponent(url)}&itag=${format.itag}&type=video`,
+          filesize: format.contentLength ? `~${Math.round(parseInt(format.contentLength) / 1024 / 1024)}MB` : 'Unknown',
+          type: 'video'
+        })
+      }
+    }
+    
+    // Add audio-only formats
+    const audioFormats = ytdl.filterFormats(info.formats, 'audioonly')
+    for (const format of audioFormats.slice(0, 2)) { // Take first 2 audio formats
+      formats.push({
+        quality: format.audioBitrate ? `${format.audioBitrate}kbps` : 'High',
+        format: 'mp3',
+        url: `/api/tools/youtube/stream?url=${encodeURIComponent(url)}&itag=${format.itag}&type=audio`,
+        filesize: format.contentLength ? `~${Math.round(parseInt(format.contentLength) / 1024 / 1024)}MB` : 'Unknown',
+        type: 'audio'
+      })
+    }
+
+    return {
+      id: videoDetails.videoId,
+      title: videoDetails.title || 'Unknown Title',
+      description: videoDetails.description?.substring(0, 500) || 'No description available',
+      thumbnail: videoDetails.thumbnails?.[videoDetails.thumbnails.length - 1]?.url || '',
+      duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0')),
+      channelName: typeof videoDetails.author === 'string' ? videoDetails.author : videoDetails.author?.name || 'Unknown Channel',
+      viewCount: parseInt(videoDetails.viewCount || '0').toLocaleString(),
+      uploadDate: videoDetails.publishDate || 'Unknown',
+      formats
+    }
+  } catch (error) {
+    console.error('Error getting YouTube video info:', error instanceof Error ? error.message : error)
+    return null
+  }
+}
+
+export async function downloadYouTubeVideo(url: string, itag: string, type: 'video' | 'audio'): Promise<{
+  success: boolean
+  stream?: any
+  filename?: string
+  message: string
+}> {
+  try {
+    // Dynamic import to avoid issues with Edge runtime
+    const ytdl = (await import('@distube/ytdl-core')).default
+    
+    // Validate URL
+    if (!ytdl.validateURL(url)) {
+      return {
+        success: false,
+        message: 'Invalid YouTube URL'
+      }
+    }
+
+    // Get video info for filename
+    const info = await ytdl.getInfo(url)
+    const videoDetails = info.videoDetails
+    
+    // Clean filename
+    const cleanTitle = videoDetails.title?.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_') || 'video'
+    const extension = type === 'audio' ? 'mp3' : 'mp4'
+    const filename = `${cleanTitle}.${extension}`
+    
+    // Create download stream
+    const options = {
+      quality: itag,
+      filter: type === 'audio' ? 'audioonly' : 'videoandaudio'
+    }
+    
+    const stream = ytdl(url, options)
+    
+    return {
+      success: true,
+      stream,
+      filename,
+      message: 'Download started successfully'
+    }
+  } catch (error) {
+    console.error('Error processing YouTube download:', error)
+    return {
+      success: false,
+      message: 'Failed to process download request'
+    }
+  }
+}
+
+export async function getYouTubeStreamInfo(url: string, itag: string): Promise<{
+  success: boolean
+  stream?: any
+  contentType?: string
+  filename?: string
+  message: string
+}> {
+  try {
+    // Dynamic import to avoid issues with Edge runtime
+    const ytdl = (await import('@distube/ytdl-core')).default
+    
+    // Validate URL
+    if (!ytdl.validateURL(url)) {
+      return {
+        success: false,
+        message: 'Invalid YouTube URL'
+      }
+    }
+
+    // Get video info
+    const info = await ytdl.getInfo(url)
+    const videoDetails = info.videoDetails
+    
+    // Find the specific format
+    const format = info.formats.find(f => f.itag.toString() === itag)
+    if (!format) {
+      return {
+        success: false,
+        message: 'Format not found'
+      }
+    }
+    
+    // Clean filename
+    const cleanTitle = videoDetails.title?.replace(/[^\w\s-]/g, '').replace(/\s+/g, '_') || 'video'
+    const extension = format.container || (format.mimeType?.includes('audio') ? 'mp3' : 'mp4')
+    const filename = `${cleanTitle}.${extension}`
+    
+    // Create stream
+    const stream = ytdl(url, { quality: itag })
+    
+    return {
+      success: true,
+      stream,
+      contentType: format.mimeType || 'video/mp4',
+      filename,
+      message: 'Stream ready'
+    }
+  } catch (error) {
+    console.error('Error getting YouTube stream:', error)
+    return {
+      success: false,
+      message: 'Failed to get stream'
+    }
+  }
+}
+
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+    ]
+    
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match) {
+        return match[1]
+      }
+    }
+    
+    return null
+  } catch (error) {
+    return null
+  }
+}
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+  
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  } else {
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
 }

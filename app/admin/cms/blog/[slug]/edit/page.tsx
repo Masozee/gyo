@@ -87,7 +87,7 @@ export default function EditBlogPostPage() {
         metaDescription: postData.metaDescription || '',
         metaKeywords: postData.metaKeywords || '',
         isPublished: postData.isPublished || false,
-        publishedAt: postData.publishedAt || '',
+        publishedAt: postData.publishedAt ? (postData.publishedAt instanceof Date ? postData.publishedAt.toISOString().split('T')[0] : postData.publishedAt) : '',
       });
     } catch (error) {
       console.error('Failed to load blog post:', error);
@@ -166,10 +166,10 @@ export default function EditBlogPostPage() {
         metaKeywords: formData.metaKeywords || null,
         isPublished: publish || formData.isPublished,
         publishedAt: (publish || formData.isPublished) && !post?.publishedAt 
-          ? new Date().toISOString() 
-          : formData.publishedAt || null,
+          ? new Date() 
+          : formData.publishedAt ? new Date(formData.publishedAt) : null,
         readingTime: calculateReadingTime(formData.content),
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       };
 
       await updateBlogPost(post!.slug, updateData);

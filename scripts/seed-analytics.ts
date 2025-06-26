@@ -1,4 +1,4 @@
-import { db } from '../lib/db'
+import { db } from '../lib/db-server'
 import { sessions, pageViews, apiRequests, dailyStats } from '../lib/schema'
 
 async function seedAnalytics() {

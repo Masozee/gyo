@@ -1,5 +1,5 @@
 import { eq, like, or, desc, and } from 'drizzle-orm';
-import { db } from '../db';
+import { db } from '../db-server';
 import { expenses, projects, users, type Expense, type NewExpense } from '../schema';
 
 export interface ExpenseWithRelations extends Expense {

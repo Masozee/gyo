@@ -1,10 +1,10 @@
 import { sql } from 'drizzle-orm';
-import { text, integer, sqliteTable, real } from 'drizzle-orm/sqlite-core';
+import { text, integer, pgTable, real, serial, boolean, timestamp } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // ─── Users ───
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   firstName: text('first_name'),
@@ -22,15 +22,15 @@ export const users = sqliteTable('users', {
   company: text('company'),
   jobTitle: text('job_title'),
   website: text('website'),
-  isActive: integer('is_active', { mode: 'boolean' }).default(true),
-  emailVerified: integer('email_verified', { mode: 'boolean' }).default(false),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  isActive: boolean('is_active').default(true),
+  emailVerified: boolean('email_verified').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Clients ───
-export const clients = sqliteTable('clients', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const clients = pgTable('clients', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email'),
   phone: text('phone'),
@@ -42,14 +42,14 @@ export const clients = sqliteTable('clients', {
   country: text('country'),
   website: text('website'),
   notes: text('notes'),
-  isActive: integer('is_active', { mode: 'boolean' }).default(true),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Projects ───
-export const projects = sqliteTable('projects', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const projects = pgTable('projects', {
+  id: serial('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description'),
   clientId: integer('client_id').references(() => clients.id),
@@ -58,7 +58,7 @@ export const projects = sqliteTable('projects', {
   priority: text('priority').default('MEDIUM'), // LOW, MEDIUM, HIGH, URGENT
   startDate: text('start_date').notNull(),
   deadline: text('deadline'),
-  completedAt: text('completed_at'),
+  completedAt: timestamp('completed_at'),
   tags: text('tags'), // JSON array of tags
   color: text('color').default('#3b82f6'), // Hex color for project identification
   
@@ -71,13 +71,13 @@ export const projects = sqliteTable('projects', {
   // Progress tracking
   progressPercentage: integer('progress_percentage').default(0),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Tasks ───
-export const tasks = sqliteTable('tasks', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const tasks = pgTable('tasks', {
+  id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id),
   assignedToId: integer('assigned_to_id').references(() => users.id),
   title: text('title').notNull(),
@@ -93,25 +93,25 @@ export const tasks = sqliteTable('tasks', {
   // Dependencies
   parentTaskId: integer('parent_task_id'),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
-  completedAt: text('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
 });
 
 // ─── Task Checklists ───
-export const checklists = sqliteTable('checklists', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const checklists = pgTable('checklists', {
+  id: serial('id').primaryKey(),
   taskId: integer('task_id').notNull().references(() => tasks.id),
   content: text('content').notNull(),
-  isDone: integer('is_done', { mode: 'boolean' }).default(false),
+  isDone: boolean('is_done').default(false),
   order: integer('order').default(0),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Time Logs ───
-export const timeLogs = sqliteTable('time_logs', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const timeLogs = pgTable('time_logs', {
+  id: serial('id').primaryKey(),
   taskId: integer('task_id').notNull().references(() => tasks.id),
   userId: integer('user_id').notNull().references(() => users.id),
   date: text('date').notNull(),
@@ -119,14 +119,14 @@ export const timeLogs = sqliteTable('time_logs', {
   endTime: text('end_time'),
   hoursSpent: real('hours_spent').notNull(),
   description: text('description'),
-  billable: integer('billable', { mode: 'boolean' }).default(true),
+  billable: boolean('billable').default(true),
   hourlyRate: real('hourly_rate'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Expenses ───
-export const expenses = sqliteTable('expenses', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const expenses = pgTable('expenses', {
+  id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id),
   userId: integer('user_id').notNull().references(() => users.id),
   date: text('date').notNull(),
@@ -137,14 +137,14 @@ export const expenses = sqliteTable('expenses', {
   taxAmount: real('tax_amount').default(0),
   receiptUrl: text('receipt_url'), // Link to receipt file
   description: text('description'),
-  billable: integer('billable', { mode: 'boolean' }).default(true),
-  reimbursed: integer('reimbursed', { mode: 'boolean' }).default(false),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  billable: boolean('billable').default(true),
+  reimbursed: boolean('reimbursed').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Invoices ───
-export const invoices = sqliteTable('invoices', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const invoices = pgTable('invoices', {
+  id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id),
   clientId: integer('client_id').notNull().references(() => clients.id),
   invoiceNumber: text('invoice_number').notNull().unique(),
@@ -166,15 +166,15 @@ export const invoices = sqliteTable('invoices', {
   terms: text('terms'),
   invoiceUrl: text('invoice_url'), // Link to generated PDF
   
-  sentAt: text('sent_at'),
-  paidAt: text('paid_at'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  sentAt: timestamp('sent_at'),
+  paidAt: timestamp('paid_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Invoice Line Items ───
-export const invoiceLineItems = sqliteTable('invoice_line_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const invoiceLineItems = pgTable('invoice_line_items', {
+  id: serial('id').primaryKey(),
   invoiceId: integer('invoice_id').notNull().references(() => invoices.id),
   description: text('description').notNull(),
   quantity: real('quantity').default(1),
@@ -184,8 +184,8 @@ export const invoiceLineItems = sqliteTable('invoice_line_items', {
 });
 
 // ─── Payments ───
-export const payments = sqliteTable('payments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const payments = pgTable('payments', {
+  id: serial('id').primaryKey(),
   invoiceId: integer('invoice_id').notNull().references(() => invoices.id),
   date: text('date').notNull(),
   amount: real('amount').notNull(),
@@ -194,33 +194,34 @@ export const payments = sqliteTable('payments', {
   transactionId: text('transaction_id'),
   transferProofUrl: text('transfer_proof_url'), // Link to payment proof
   notes: text('notes'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Project Files/Documents ───
-export const projectFiles = sqliteTable('project_files', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const projectFiles = pgTable('project_files', {
+  id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id),
   taskId: integer('task_id').references(() => tasks.id),
+  commentId: integer('comment_id').references(() => projectComments.id), // For files attached to comments
   uploadedById: integer('uploaded_by_id').notNull().references(() => users.id),
   fileName: text('file_name').notNull(),
   fileUrl: text('file_url').notNull(),
   fileSize: integer('file_size'), // in bytes
   fileType: text('file_type'),
   description: text('description'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Project Comments/Notes ───
-export const projectComments = sqliteTable('project_comments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const projectComments = pgTable('project_comments', {
+  id: serial('id').primaryKey(),
   projectId: integer('project_id').references(() => projects.id),
   taskId: integer('task_id').references(() => tasks.id),
   authorId: integer('author_id').notNull().references(() => users.id),
   content: text('content').notNull(),
-  isInternal: integer('is_internal', { mode: 'boolean' }).default(false), // Internal notes vs client-visible
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  isInternal: boolean('is_internal').default(false), // Internal notes vs client-visible
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Relations ───
@@ -231,11 +232,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   expenses: many(expenses),
   uploadedFiles: many(projectFiles),
   comments: many(projectComments),
+  events: many(events),
 }));
 
 export const clientsRelations = relations(clients, ({ many }) => ({
   projects: many(projects),
   invoices: many(invoices),
+  events: many(events),
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -252,6 +255,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   invoices: many(invoices),
   files: many(projectFiles),
   comments: many(projectComments),
+  events: many(events),
 }));
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -339,13 +343,17 @@ export const projectFilesRelations = relations(projectFiles, ({ one }) => ({
     fields: [projectFiles.taskId],
     references: [tasks.id],
   }),
+  comment: one(projectComments, {
+    fields: [projectFiles.commentId],
+    references: [projectComments.id],
+  }),
   uploadedBy: one(users, {
     fields: [projectFiles.uploadedById],
     references: [users.id],
   }),
 }));
 
-export const projectCommentsRelations = relations(projectComments, ({ one }) => ({
+export const projectCommentsRelations = relations(projectComments, ({ one, many }) => ({
   project: one(projects, {
     fields: [projectComments.projectId],
     references: [projects.id],
@@ -358,6 +366,7 @@ export const projectCommentsRelations = relations(projectComments, ({ one }) => 
     fields: [projectComments.authorId],
     references: [users.id],
   }),
+  attachments: many(projectFiles), // Files attached to this comment
 }));
 
 // ─── Type Exports ───
@@ -398,8 +407,8 @@ export type ProjectComment = typeof projectComments.$inferSelect;
 export type NewProjectComment = typeof projectComments.$inferInsert;
 
 // ─── Documents & Contracts ───
-export const documents = sqliteTable('documents', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const documents = pgTable('documents', {
+  id: serial('id').primaryKey(),
   internalNumber: integer('internal_number').notNull(), // Auto-incrementing internal number
   documentNumber: text('document_number'), // Client-provided document number
   title: text('title').notNull(),
@@ -439,27 +448,27 @@ export const documents = sqliteTable('documents', {
   currency: text('currency').default('USD'),
   
   // Approval workflow
-  approvalRequired: integer('approval_required', { mode: 'boolean' }).default(false),
+  approvalRequired: boolean('approval_required').default(false),
   approvedBy: integer('approved_by').references(() => users.id),
-  approvedAt: text('approved_at'),
+  approvedAt: timestamp('approved_at'),
   
   // Document tracking
-  isTemplate: integer('is_template', { mode: 'boolean' }).default(false),
+  isTemplate: boolean('is_template').default(false),
   parentDocumentId: integer('parent_document_id').references((): any => documents.id),
-  isActive: integer('is_active', { mode: 'boolean' }).default(true),
-  isConfidential: integer('is_confidential', { mode: 'boolean' }).default(false),
+  isActive: boolean('is_active').default(true),
+  isConfidential: boolean('is_confidential').default(false),
   
   // Audit trail
-  lastAccessedAt: text('last_accessed_at'),
+  lastAccessedAt: timestamp('last_accessed_at'),
   accessCount: integer('access_count').default(0),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Document Revisions ───
-export const documentRevisions = sqliteTable('document_revisions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const documentRevisions = pgTable('document_revisions', {
+  id: serial('id').primaryKey(),
   documentId: integer('document_id').notNull().references(() => documents.id),
   revisionNumber: integer('revision_number').notNull(),
   title: text('title').notNull(),
@@ -469,60 +478,60 @@ export const documentRevisions = sqliteTable('document_revisions', {
   filePath: text('file_path'),
   fileName: text('file_name'),
   fileSize: integer('file_size'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Document Comments ───
-export const documentComments = sqliteTable('document_comments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const documentComments = pgTable('document_comments', {
+  id: serial('id').primaryKey(),
   documentId: integer('document_id').notNull().references(() => documents.id),
   userId: integer('user_id').notNull().references(() => users.id),
   content: text('content').notNull(),
-  isInternal: integer('is_internal', { mode: 'boolean' }).default(true), // Internal vs client-visible
+  isInternal: boolean('is_internal').default(true), // Internal vs client-visible
   parentCommentId: integer('parent_comment_id').references((): any => documentComments.id),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Document Signatures ───
-export const documentSignatures = sqliteTable('document_signatures', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const documentSignatures = pgTable('document_signatures', {
+  id: serial('id').primaryKey(),
   documentId: integer('document_id').notNull().references(() => documents.id),
   signerName: text('signer_name').notNull(),
   signerEmail: text('signer_email').notNull(),
   signerRole: text('signer_role'), // CLIENT, VENDOR, WITNESS, etc.
   signatureData: text('signature_data'), // Base64 signature image or digital signature
-  signedAt: text('signed_at'),
+  signedAt: timestamp('signed_at'),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
-  isSigned: integer('is_signed', { mode: 'boolean' }).default(false),
+  isSigned: boolean('is_signed').default(false),
   signatureOrder: integer('signature_order').default(1), // For multiple signers
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── CMS Tables ───
 
 // ─── Pages (Landing, About, etc.) ───
-export const pages = sqliteTable('pages', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const pages = pgTable('pages', {
+  id: serial('id').primaryKey(),
   slug: text('slug').notNull().unique(),
   title: text('title').notNull(),
   content: text('content'), // Rich text content
   metaTitle: text('meta_title'),
   metaDescription: text('meta_description'),
   metaKeywords: text('meta_keywords'),
-  isPublished: integer('is_published', { mode: 'boolean' }).default(false),
-  publishedAt: text('published_at'),
+  isPublished: boolean('is_published').default(false),
+  publishedAt: timestamp('published_at'),
   featuredImage: text('featured_image'),
   template: text('template').default('default'), // page template type
   order: integer('order').default(0),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Blog Posts ───
-export const blogPosts = sqliteTable('blog_posts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const blogPosts = pgTable('blog_posts', {
+  id: serial('id').primaryKey(),
   slug: text('slug').notNull().unique(),
   title: text('title').notNull(),
   excerpt: text('excerpt'),
@@ -535,28 +544,28 @@ export const blogPosts = sqliteTable('blog_posts', {
   metaTitle: text('meta_title'),
   metaDescription: text('meta_description'),
   metaKeywords: text('meta_keywords'),
-  isPublished: integer('is_published', { mode: 'boolean' }).default(false),
-  publishedAt: text('published_at'),
+  isPublished: boolean('is_published').default(false),
+  publishedAt: timestamp('published_at'),
   viewCount: integer('view_count').default(0),
   readingTime: integer('reading_time'), // estimated reading time in minutes
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Blog Categories ───
-export const blogCategories = sqliteTable('blog_categories', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const blogCategories = pgTable('blog_categories', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull().unique(),
   slug: text('slug').notNull().unique(),
   description: text('description'),
   color: text('color').default('#3b82f6'),
-  isActive: integer('is_active', { mode: 'boolean' }).default(true),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Portfolio Items (from Projects) ───
-export const portfolioItems = sqliteTable('portfolio_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const portfolioItems = pgTable('portfolio_items', {
+  id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id),
   title: text('title').notNull(),
   description: text('description'),
@@ -567,16 +576,16 @@ export const portfolioItems = sqliteTable('portfolio_items', {
   projectUrl: text('project_url'), // Live project URL
   githubUrl: text('github_url'), // GitHub repository URL
   category: text('category'), // WEB, MOBILE, DESKTOP, DESIGN, etc.
-  isPublished: integer('is_published', { mode: 'boolean' }).default(false),
-  publishedAt: text('published_at'),
+  isPublished: boolean('is_published').default(false),
+  publishedAt: timestamp('published_at'),
   order: integer('order').default(0),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Media Library ───
-export const mediaFiles = sqliteTable('media_files', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const mediaFiles = pgTable('media_files', {
+  id: serial('id').primaryKey(),
   fileName: text('file_name').notNull(),
   originalName: text('original_name').notNull(),
   fileUrl: text('file_url').notNull(),
@@ -589,13 +598,13 @@ export const mediaFiles = sqliteTable('media_files', {
   caption: text('caption'),
   uploadedById: integer('uploaded_by_id').notNull().references(() => users.id),
   folder: text('folder').default('uploads'), // organize files in folders
-  isPublic: integer('is_public', { mode: 'boolean' }).default(true),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  isPublic: boolean('is_public').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Site Settings ───
-export const siteSettings = sqliteTable('site_settings', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const siteSettings = pgTable('site_settings', {
+  id: serial('id').primaryKey(),
   key: text('key').notNull().unique(),
   value: text('value'),
   type: text('type').default('text'), // text, number, boolean, json, image
@@ -603,23 +612,23 @@ export const siteSettings = sqliteTable('site_settings', {
   label: text('label').notNull(),
   description: text('description'),
   order: integer('order').default(0),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Contact Form Submissions ───
-export const contactSubmissions = sqliteTable('contact_submissions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const contactSubmissions = pgTable('contact_submissions', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull(),
   subject: text('subject'),
   message: text('message').notNull(),
   phone: text('phone'),
   company: text('company'),
-  isRead: integer('is_read', { mode: 'boolean' }).default(false),
-  isReplied: integer('is_replied', { mode: 'boolean' }).default(false),
+  isRead: boolean('is_read').default(false),
+  isReplied: boolean('is_replied').default(false),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── CMS Relations ───
@@ -780,8 +789,8 @@ export type DocumentWithRelations = Document & {
 // ─── Email System ───
 
 // ─── Emails ───
-export const emails = sqliteTable('emails', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const emails = pgTable('emails', {
+  id: serial('id').primaryKey(),
   messageId: text('message_id').unique(), // Unique identifier from email provider
   threadId: text('thread_id'), // For grouping related emails
   
@@ -801,10 +810,10 @@ export const emails = sqliteTable('emails', {
   
   // Metadata
   folder: text('folder').default('inbox'), // inbox, sent, drafts, archive, trash, spam
-  isRead: integer('is_read', { mode: 'boolean' }).default(false),
-  isStarred: integer('is_starred', { mode: 'boolean' }).default(false),
-  isImportant: integer('is_important', { mode: 'boolean' }).default(false),
-  isDraft: integer('is_draft', { mode: 'boolean' }).default(false),
+  isRead: boolean('is_read').default(false),
+  isStarred: boolean('is_starred').default(false),
+  isImportant: boolean('is_important').default(false),
+  isDraft: boolean('is_draft').default(false),
   
   // Labels and categories
   labels: text('labels'), // JSON array of labels
@@ -815,11 +824,11 @@ export const emails = sqliteTable('emails', {
   deliveryStatus: text('delivery_status'), // sent, delivered, failed, bounced
   
   // Dates
-  sentAt: text('sent_at'),
-  receivedAt: text('received_at'),
+  sentAt: timestamp('sent_at'),
+  receivedAt: timestamp('received_at'),
   
   // Attachments
-  hasAttachments: integer('has_attachments', { mode: 'boolean' }).default(false),
+  hasAttachments: boolean('has_attachments').default(false),
   attachmentCount: integer('attachment_count').default(0),
   
   // Threading
@@ -829,13 +838,13 @@ export const emails = sqliteTable('emails', {
   // User association
   userId: integer('user_id').notNull().references(() => users.id),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Email Attachments ───
-export const emailAttachments = sqliteTable('email_attachments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const emailAttachments = pgTable('email_attachments', {
+  id: serial('id').primaryKey(),
   emailId: integer('email_id').notNull().references(() => emails.id),
   fileName: text('file_name').notNull(),
   originalName: text('original_name').notNull(),
@@ -843,23 +852,23 @@ export const emailAttachments = sqliteTable('email_attachments', {
   fileSize: integer('file_size'), // in bytes
   mimeType: text('mime_type').notNull(),
   contentId: text('content_id'), // For inline attachments
-  isInline: integer('is_inline', { mode: 'boolean' }).default(false),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  isInline: boolean('is_inline').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Email Labels ───
-export const emailLabels = sqliteTable('email_labels', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const emailLabels = pgTable('email_labels', {
+  id: serial('id').primaryKey(),
   name: text('name').notNull().unique(),
   color: text('color').default('#3b82f6'),
-  isSystem: integer('is_system', { mode: 'boolean' }).default(false), // System vs user-created
+  isSystem: boolean('is_system').default(false), // System vs user-created
   userId: integer('user_id').notNull().references(() => users.id),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Email Drafts ───
-export const emailDrafts = sqliteTable('email_drafts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const emailDrafts = pgTable('email_drafts', {
+  id: serial('id').primaryKey(),
   to: text('to').notNull(),
   cc: text('cc'),
   bcc: text('bcc'),
@@ -870,22 +879,22 @@ export const emailDrafts = sqliteTable('email_drafts', {
   replyToEmailId: integer('reply_to_email_id').references(() => emails.id),
   forwardEmailId: integer('forward_email_id').references(() => emails.id),
   userId: integer('user_id').notNull().references(() => users.id),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Email Provider Settings ───
-export const emailProviderSettings = sqliteTable('email_provider_settings', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const emailProviderSettings = pgTable('email_provider_settings', {
+  id: serial('id').primaryKey(),
   provider: text('provider').notNull(), // resend, sendgrid, mailgun, smtp, etc.
-  isActive: integer('is_active', { mode: 'boolean' }).default(false),
+  isActive: boolean('is_active').default(false),
   settings: text('settings').notNull(), // JSON encrypted settings
   fromEmail: text('from_email').notNull(),
   fromName: text('from_name'),
   replyToEmail: text('reply_to_email'),
   userId: integer('user_id').notNull().references(() => users.id),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Email Relations ───
@@ -962,8 +971,8 @@ export type EmailWithRelations = Email & {
 // ─── Analytics & Traffic Tables ───
 
 // Page views and sessions tracking
-export const pageViews = sqliteTable('page_views', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const pageViews = pgTable('page_views', {
+  id: serial('id').primaryKey(),
   sessionId: text('session_id').notNull(),
   userId: integer('user_id').references(() => users.id),
   path: text('path').notNull(),
@@ -980,11 +989,11 @@ export const pageViews = sqliteTable('page_views', {
   medium: text('medium'),
   campaign: text('campaign'),
   duration: integer('duration'), // time spent on page in seconds
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // User sessions tracking
-export const sessions = sqliteTable('sessions', {
+export const sessions = pgTable('sessions', {
   id: text('id').primaryKey(), // session ID
   userId: integer('user_id').references(() => users.id),
   ip: text('ip'),
@@ -1001,15 +1010,15 @@ export const sessions = sqliteTable('sessions', {
   exitPage: text('exit_page'),
   pageCount: integer('page_count').default(1),
   duration: integer('duration'), // session duration in seconds
-  bounced: integer('bounced', { mode: 'boolean' }).default(false),
-  converted: integer('converted', { mode: 'boolean' }).default(false),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  bounced: boolean('bounced').default(false),
+  converted: boolean('converted').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // API requests tracking
-export const apiRequests = sqliteTable('api_requests', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const apiRequests = pgTable('api_requests', {
+  id: serial('id').primaryKey(),
   sessionId: text('session_id'),
   userId: integer('user_id').references(() => users.id),
   method: text('method').notNull(), // GET, POST, PUT, DELETE
@@ -1022,12 +1031,12 @@ export const apiRequests = sqliteTable('api_requests', {
   errorMessage: text('error_message'),
   requestSize: integer('request_size'), // in bytes
   responseSize: integer('response_size'), // in bytes
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Daily aggregated statistics for faster queries
-export const dailyStats = sqliteTable('daily_stats', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const dailyStats = pgTable('daily_stats', {
+  id: serial('id').primaryKey(),
   date: text('date').notNull().unique(), // YYYY-MM-DD format
   totalSessions: integer('total_sessions').default(0),
   totalPageViews: integer('total_page_views').default(0),
@@ -1042,12 +1051,12 @@ export const dailyStats = sqliteTable('daily_stats', {
   topPage: text('top_page'),
   topSource: text('top_source'),
   topCountry: text('top_country'),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Real-time visitor tracking
-export const activeVisitors = sqliteTable('active_visitors', {
+export const activeVisitors = pgTable('active_visitors', {
   sessionId: text('session_id').primaryKey(),
   userId: integer('user_id').references(() => users.id),
   currentPage: text('current_page'),
@@ -1057,8 +1066,8 @@ export const activeVisitors = sqliteTable('active_visitors', {
   device: text('device'),
   browser: text('browser'),
   source: text('source'),
-  lastSeen: text('last_seen').default(sql`CURRENT_TIMESTAMP`),
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  lastSeen: timestamp('last_seen').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Analytics Relations ───
@@ -1114,8 +1123,8 @@ export type NewActiveVisitor = typeof activeVisitors.$inferInsert;
 // ─── Tools Tables ───
 
 // ─── URL Shortener ───
-export const shortenedUrls = sqliteTable('shortened_urls', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const shortenedUrls = pgTable('shortened_urls', {
+  id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id),
   originalUrl: text('original_url').notNull(),
   shortCode: text('short_code').notNull().unique(),
@@ -1125,23 +1134,23 @@ export const shortenedUrls = sqliteTable('shortened_urls', {
   // Analytics
   clicks: integer('clicks').default(0),
   uniqueClicks: integer('unique_clicks').default(0),
-  lastClickedAt: text('last_clicked_at'),
+  lastClickedAt: timestamp('last_clicked_at'),
   
   // Settings
-  isActive: integer('is_active', { mode: 'boolean' }).default(true),
-  expiresAt: text('expires_at'),
+  isActive: boolean('is_active').default(true),
+  expiresAt: timestamp('expires_at'),
   password: text('password'), // Optional password protection
   
   // QR Code integration
   qrCodeUrl: text('qr_code_url'),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── URL Click Tracking ───
-export const urlClicks = sqliteTable('url_clicks', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const urlClicks = pgTable('url_clicks', {
+  id: serial('id').primaryKey(),
   shortenedUrlId: integer('shortened_url_id').notNull().references(() => shortenedUrls.id),
   ip: text('ip'),
   userAgent: text('user_agent'),
@@ -1151,12 +1160,12 @@ export const urlClicks = sqliteTable('url_clicks', {
   device: text('device'),
   browser: text('browser'),
   os: text('os'),
-  clickedAt: text('clicked_at').default(sql`CURRENT_TIMESTAMP`),
+  clickedAt: timestamp('clicked_at').defaultNow(),
 });
 
 // ─── QR Codes ───
-export const qrCodes = sqliteTable('qr_codes', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const qrCodes = pgTable('qr_codes', {
+  id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id),
   name: text('name').notNull(),
   type: text('type').notNull(), // url, text, wifi, contact, email, phone, sms, location
@@ -1174,18 +1183,18 @@ export const qrCodes = sqliteTable('qr_codes', {
   
   // Analytics
   scans: integer('scans').default(0),
-  lastScannedAt: text('last_scanned_at'),
+  lastScannedAt: timestamp('last_scanned_at'),
   
   // Associated with URL shortener
   shortenedUrlId: integer('shortened_url_id').references(() => shortenedUrls.id),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── QR Code Scans ───
-export const qrCodeScans = sqliteTable('qr_code_scans', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const qrCodeScans = pgTable('qr_code_scans', {
+  id: serial('id').primaryKey(),
   qrCodeId: integer('qr_code_id').notNull().references(() => qrCodes.id),
   ip: text('ip'),
   userAgent: text('user_agent'),
@@ -1194,12 +1203,12 @@ export const qrCodeScans = sqliteTable('qr_code_scans', {
   device: text('device'),
   browser: text('browser'),
   os: text('os'),
-  scannedAt: text('scanned_at').default(sql`CURRENT_TIMESTAMP`),
+  scannedAt: timestamp('scanned_at').defaultNow(),
 });
 
 // ─── Document Signing ───
-export const signingRequests = sqliteTable('signing_requests', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const signingRequests = pgTable('signing_requests', {
+  id: serial('id').primaryKey(),
   userId: integer('user_id').notNull().references(() => users.id),
   
   // Document info
@@ -1214,25 +1223,25 @@ export const signingRequests = sqliteTable('signing_requests', {
   status: text('status').default('draft'), // draft, sent, partially_signed, signed, expired, declined, cancelled
   
   // Signing settings
-  expiresAt: text('expires_at').notNull(),
-  reminderEnabled: integer('reminder_enabled', { mode: 'boolean' }).default(true),
+  expiresAt: timestamp('expires_at').notNull(),
+  reminderEnabled: boolean('reminder_enabled').default(true),
   reminderDays: integer('reminder_days').default(3),
   
   // Workflow
   signingOrder: text('signing_order').default('parallel'), // parallel, sequential
-  requiresAllSignatures: integer('requires_all_signatures', { mode: 'boolean' }).default(true),
+  requiresAllSignatures: boolean('requires_all_signatures').default(true),
   
   // Tracking
-  sentAt: text('sent_at'),
-  completedAt: text('completed_at'),
+  sentAt: timestamp('sent_at'),
+  completedAt: timestamp('completed_at'),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Document Signers ───
-export const documentSigners = sqliteTable('document_signers', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const documentSigners = pgTable('document_signers', {
+  id: serial('id').primaryKey(),
   signingRequestId: integer('signing_request_id').notNull().references(() => signingRequests.id),
   
   // Signer info
@@ -1242,8 +1251,8 @@ export const documentSigners = sqliteTable('document_signers', {
   
   // Signing details
   status: text('status').default('pending'), // pending, signed, declined, expired
-  signedAt: text('signed_at'),
-  declinedAt: text('declined_at'),
+  signedAt: timestamp('signed_at'),
+  declinedAt: timestamp('declined_at'),
   declineReason: text('decline_reason'),
   
   // Digital signature
@@ -1254,19 +1263,19 @@ export const documentSigners = sqliteTable('document_signers', {
   
   // Access control
   accessToken: text('access_token').notNull().unique(),
-  accessedAt: text('accessed_at'),
+  accessedAt: timestamp('accessed_at'),
   accessCount: integer('access_count').default(0),
   
   // Order for sequential signing
   signingOrder: integer('signing_order').default(1),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // ─── Signing Events ───
-export const signingEvents = sqliteTable('signing_events', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const signingEvents = pgTable('signing_events', {
+  id: serial('id').primaryKey(),
   signingRequestId: integer('signing_request_id').notNull().references(() => signingRequests.id),
   signerId: integer('signer_id').references(() => documentSigners.id),
   
@@ -1275,7 +1284,7 @@ export const signingEvents = sqliteTable('signing_events', {
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
   
-  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // ─── Tools Relations ───
@@ -1384,4 +1393,160 @@ export type SigningRequestWithRelations = SigningRequest & {
   user?: User;
   signers?: DocumentSigner[];
   events?: SigningEvent[];
+};
+
+// ─── Events/Schedule ───
+export const events = pgTable('events', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  startDate: text('start_date').notNull(), // YYYY-MM-DD
+  endDate: text('end_date'), // YYYY-MM-DD for multi-day events
+  startTime: text('start_time'), // HH:MM format
+  endTime: text('end_time'), // HH:MM format
+  allDay: boolean('all_day').default(false),
+  
+  // Event details
+  type: text('type').default('meeting'), // meeting, call, presentation, deadline, task, appointment
+  status: text('status').default('confirmed'), // confirmed, tentative, cancelled
+  priority: text('priority').default('medium'), // low, medium, high, urgent
+  color: text('color').default('blue'), // for calendar display
+  
+  // Location and attendees
+  location: text('location'),
+  isVirtual: boolean('is_virtual').default(false),
+  meetingUrl: text('meeting_url'), // Zoom, Teams, etc.
+  attendees: text('attendees'), // JSON array of attendee names/emails
+  
+  // Associations
+  projectId: integer('project_id').references(() => projects.id),
+  clientId: integer('client_id').references(() => clients.id),
+  userId: integer('user_id').notNull().references(() => users.id), // Event creator/owner
+  
+  // Recurrence
+  isRecurring: boolean('is_recurring').default(false),
+  recurrenceRule: text('recurrence_rule'), // JSON for recurrence pattern
+  parentEventId: integer('parent_event_id').references((): any => events.id), // For recurring events
+  
+  // Reminders and notifications
+  reminderMinutes: integer('reminder_minutes').default(15), // minutes before event
+  
+  // Metadata
+  notes: text('notes'),
+  attachments: text('attachments'), // JSON array of file references
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ─── Events Relations ───
+export const eventsRelations = relations(events, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [events.projectId],
+    references: [projects.id],
+  }),
+  client: one(clients, {
+    fields: [events.clientId],
+    references: [clients.id],
+  }),
+  user: one(users, {
+    fields: [events.userId],
+    references: [users.id],
+  }),
+  parentEvent: one(events, {
+    fields: [events.parentEventId],
+    references: [events.id],
+  }),
+  childEvents: many(events), // For recurring events
+}));
+
+// ─── Events Types ───
+export type Event = typeof events.$inferSelect;
+export type NewEvent = typeof events.$inferInsert;
+
+export type EventWithRelations = Event & {
+  project?: {
+    id: number;
+    title: string;
+    status: string;
+  };
+  client?: {
+    id: number;
+    name: string;
+    company?: string | null;
+  };
+  user?: {
+    id: number;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+  parentEvent?: Event;
+  childEvents?: Event[];
+};
+
+// ─── Gemini Chat Conversations ───
+export const chatConversations = pgTable('chat_conversations', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  title: text('title').notNull(),
+  description: text('description'),
+  
+  // Metadata
+  messageCount: integer('message_count').default(0),
+  lastMessageAt: timestamp('last_message_at'),
+  
+  // Settings
+  isStarred: boolean('is_starred').default(false),
+  isArchived: boolean('is_archived').default(false),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const chatMessages = pgTable('chat_messages', {
+  id: serial('id').primaryKey(),
+  conversationId: integer('conversation_id').notNull().references(() => chatConversations.id, { onDelete: 'cascade' }),
+  
+  // Message content
+  role: text('role').notNull(), // 'user' | 'assistant'
+  content: text('content').notNull(),
+  
+  // Metadata
+  tokens: integer('tokens'), // Token count for cost tracking
+  model: text('model').default('gemini-1.5-flash'),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// ─── Chat Relations ───
+export const chatConversationsRelations = relations(chatConversations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chatConversations.userId],
+    references: [users.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  conversation: one(chatConversations, {
+    fields: [chatMessages.conversationId],
+    references: [chatConversations.id],
+  }),
+}));
+
+// ─── Chat Types ───
+export type ChatConversation = typeof chatConversations.$inferSelect;
+export type NewChatConversation = typeof chatConversations.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
+
+export type ChatConversationWithMessages = ChatConversation & {
+  messages: ChatMessage[];
+  user?: {
+    id: number;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
 }; 

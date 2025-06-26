@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/db-server';
 import { clients, type Client, type NewClient } from '@/lib/schema';
 import { eq, ilike, desc, count } from 'drizzle-orm';
 
@@ -49,7 +49,7 @@ export async function createClientServer(clientData: NewClient): Promise<Client>
   const result = await db.insert(clients)
     .values({
       ...clientData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .returning();
     
@@ -63,7 +63,7 @@ export async function updateClientServer(id: number, clientData: Partial<NewClie
   const result = await db.update(clients)
     .set({
       ...clientData,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(clients.id, id))
     .returning();
@@ -104,7 +104,7 @@ export async function toggleClientStatusServer(id: number): Promise<Client> {
   const result = await db.update(clients)
     .set({
       isActive: newStatus,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(),
     })
     .where(eq(clients.id, id))
     .returning();

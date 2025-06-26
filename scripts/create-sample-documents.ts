@@ -1,4 +1,4 @@
-import { db } from '../lib/db'
+import { db } from '../lib/db-server'
 import { documents } from '../lib/schema'
 
 const sampleDocuments = [

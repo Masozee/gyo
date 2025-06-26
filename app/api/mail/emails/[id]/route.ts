@@ -1,15 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { getEmailById, updateEmail, deleteEmail } from '@/lib/email-storage'
+import { supabase } from '@/lib/db'
 
-// For now, use a mock user ID. In a real app, this would come from authentication
-const MOCK_USER_ID = 1
+// Get authenticated user from request
+async function getAuthenticatedUser(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  
+  const token = authHeader.split(' ')[1]
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (error || !user) {
+      return null
+    }
+    return user
+  } catch (error) {
+    return null
+  }
+}
+
+// Use a default user ID for database operations (like tasks)
+const DEFAULT_USER_ID = 1
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(request)
+    if (!supabaseUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const emailId = parseInt(id)
     if (isNaN(emailId)) {
@@ -19,7 +48,7 @@ export async function GET(
       )
     }
 
-    const email = await getEmailById(emailId, MOCK_USER_ID)
+    const email = await getEmailById(emailId, DEFAULT_USER_ID)
 
     if (!email) {
       return NextResponse.json(
@@ -30,7 +59,7 @@ export async function GET(
 
     // Mark as read when fetching individual email
     if (!email.isRead) {
-      await updateEmail(emailId, MOCK_USER_ID, { isRead: true })
+      await updateEmail(emailId, DEFAULT_USER_ID, { isRead: true })
     }
 
     // Transform data for frontend compatibility
@@ -65,6 +94,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(request)
+    if (!supabaseUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const emailId = parseInt(id)
     if (isNaN(emailId)) {
@@ -106,7 +144,7 @@ export async function PATCH(
     }
 
     // Update email in database
-    const updatedEmail = await updateEmail(emailId, MOCK_USER_ID, updates)
+    const updatedEmail = await updateEmail(emailId, DEFAULT_USER_ID, updates)
     
     if (!updatedEmail) {
       return NextResponse.json(
@@ -134,6 +172,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(request)
+    if (!supabaseUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const emailId = parseInt(id)
     if (isNaN(emailId)) {
@@ -144,7 +191,7 @@ export async function DELETE(
     }
 
     // Soft delete by moving to trash
-    const updatedEmail = await updateEmail(emailId, MOCK_USER_ID, { folder: 'trash' })
+    const updatedEmail = await updateEmail(emailId, DEFAULT_USER_ID, { folder: 'trash' })
     
     if (!updatedEmail) {
       return NextResponse.json(

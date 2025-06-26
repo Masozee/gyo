@@ -1,0 +1,14 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.ts": {
+      "runtime": "edge"
+    }
+  },
+  "env": {
+    "SUPABASE_URL": "@supabase_url",
+    "SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "DATABASE_URL": "@database_url"
+  }
+} 

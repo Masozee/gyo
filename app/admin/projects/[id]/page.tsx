@@ -161,7 +161,7 @@ export default function ProjectDetailsPage() {
       } catch (error) {
         console.error('Failed to load project data:', error);
         toast.error('Failed to load project details');
-        router.push('/projects');
+        router.push('/admin/projects');
       } finally {
         setLoading(false);
       }
@@ -198,7 +198,7 @@ export default function ProjectDetailsPage() {
     try {
       await deleteProject(project.id);
       toast.success('Project deleted successfully');
-      router.push('/projects');
+      router.push('/admin/projects');
     } catch (error) {
       console.error('Failed to delete project:', error);
       toast.error('Failed to delete project');
@@ -262,9 +262,9 @@ export default function ProjectDetailsPage() {
     setShowTaskDialog(true);
   };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString();
+  const formatDate = (date?: string | Date | null) => {
+    if (!date) return 'Not set';
+    return new Date(date).toLocaleDateString();
   };
 
   const formatCurrency = (amount?: number | null) => {
@@ -317,7 +317,7 @@ export default function ProjectDetailsPage() {
       <div className="text-center py-12">
         <h3 className="text-lg font-medium text-gray-900 mb-2">Project not found</h3>
         <p className="text-gray-600 mb-4">The project you're looking for doesn't exist.</p>
-        <Button onClick={() => router.push('/projects')}>
+        <Button onClick={() => router.push('/admin/projects')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Projects
         </Button>
@@ -334,7 +334,7 @@ export default function ProjectDetailsPage() {
         <div className="flex items-center space-x-4 mb-4">
           <Button 
             variant="outline" 
-            onClick={() => router.push('/projects')}
+            onClick={() => router.push('/admin/projects')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Projects
@@ -383,7 +383,7 @@ export default function ProjectDetailsPage() {
             {project.client && (
               <Button 
                 variant="outline"
-                onClick={() => router.push(`/invoices/new?projectId=${project.id}&clientId=${project.clientId}`)}
+                onClick={() => router.push(`/admin/invoices/new?projectId=${project.id}&clientId=${project.clientId}`)}
               >
                 <Receipt className="h-4 w-4 mr-2" />
                 Invoice
@@ -563,7 +563,7 @@ export default function ProjectDetailsPage() {
         <TabsContent value="tasks" className="mt-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold">Project Tasks</h3>
-            <Button onClick={() => router.push(`/tasks/new?projectId=${projectId}`)}>
+            <Button onClick={() => router.push(`/admin/tasks/new?projectId=${projectId}`)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Task
             </Button>
@@ -579,7 +579,7 @@ export default function ProjectDetailsPage() {
               <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
               <p className="text-gray-600 mb-4">Get started by creating your first task for this project.</p>
-              <Button onClick={() => router.push(`/tasks/new?projectId=${projectId}`)}>
+              <Button onClick={() => router.push(`/admin/tasks/new?projectId=${projectId}`)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Task
               </Button>
@@ -596,7 +596,7 @@ export default function ProjectDetailsPage() {
                 <DollarSign className="h-5 w-5 mr-2" />
                 Project Expenses ({expenses.length})
               </h3>
-              <Button onClick={() => router.push(`/expenses/new?projectId=${projectId}`)}>
+              <Button onClick={() => router.push(`/admin/expenses/new?projectId=${projectId}`)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Expense
               </Button>
@@ -643,11 +643,11 @@ export default function ProjectDetailsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => router.push(`/expenses/${expense.id}`)}>
+                              <DropdownMenuItem onClick={() => router.push(`/admin/expenses/${expense.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => router.push(`/expenses/${expense.id}/edit`)}>
+                              <DropdownMenuItem onClick={() => router.push(`/admin/expenses/${expense.id}/edit`)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
@@ -674,7 +674,7 @@ export default function ProjectDetailsPage() {
                 Project Invoices ({invoices.length})
               </h3>
               {project.client && (
-                <Button onClick={() => router.push(`/invoices/new?projectId=${projectId}&clientId=${project.clientId}`)}>
+                <Button onClick={() => router.push(`/admin/invoices/new?projectId=${projectId}&clientId=${project.clientId}`)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Invoice
                 </Button>
@@ -721,11 +721,11 @@ export default function ProjectDetailsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => router.push(`/invoices/${invoice.id}`)}>
+                                <DropdownMenuItem onClick={() => router.push(`/admin/invoices/${invoice.id}`)}>
                                   <Eye className="h-4 w-4 mr-2" />
                                   View
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push(`/invoices/${invoice.id}/edit`)}>
+                                <DropdownMenuItem onClick={() => router.push(`/admin/invoices/${invoice.id}/edit`)}>
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
@@ -756,7 +756,7 @@ export default function ProjectDetailsPage() {
                 <FileText className="h-5 w-5 mr-2" />
                 Documents & Contracts ({documents.length})
               </h3>
-              <Button onClick={() => router.push(`/docs/new?projectId=${projectId}`)}>
+              <Button onClick={() => router.push(`/admin/docs/new?projectId=${projectId}`)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Document
               </Button>
@@ -792,11 +792,11 @@ export default function ProjectDetailsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => router.push(`/docs/${doc.id}`)}>
+                              <DropdownMenuItem onClick={() => router.push(`/admin/docs/${doc.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 View
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => router.push(`/docs/${doc.id}/edit`)}>
+                              <DropdownMenuItem onClick={() => router.push(`/admin/docs/${doc.id}/edit`)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>

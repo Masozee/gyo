@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
 
 interface Email {
@@ -27,16 +28,49 @@ interface Email {
 }
 
 export default function EmailDetailPage() {
+  const { user, isAuthenticated } = useAuth()
   const params = useParams()
   const router = useRouter()
   const [email, setEmail] = React.useState<Email | null>(null)
   const [loading, setLoading] = React.useState(true)
 
+  // Get auth token from localStorage
+  const getAuthToken = React.useCallback(() => {
+    const session = localStorage.getItem('session')
+    if (session) {
+      try {
+        const sessionData = JSON.parse(session)
+        return sessionData.accessToken
+      } catch (error) {
+        console.error('Error parsing session:', error)
+      }
+    }
+    return null
+  }, [])
+
   React.useEffect(() => {
     const fetchEmail = async () => {
+      if (!isAuthenticated) return
+      
       try {
         setLoading(true)
-        const response = await fetch(`/api/mail/emails/${params.id}`)
+        const token = getAuthToken()
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json'
+        }
+        
+        if (token) {
+          headers.Authorization = `Bearer ${token}`
+        }
+        
+        const response = await fetch(`/api/mail/emails/${params.id}`, { headers })
+        
+        if (response.status === 401) {
+          toast.error('Session expired. Please log in again.')
+          router.push('/login')
+          return
+        }
+        
         if (!response.ok) throw new Error('Failed to fetch email')
         
         const data = await response.json()
@@ -53,20 +87,35 @@ export default function EmailDetailPage() {
       }
     }
 
-    if (params.id) {
+    if (params.id && isAuthenticated) {
       fetchEmail()
     }
-  }, [params.id, router])
+  }, [params.id, router, isAuthenticated, getAuthToken])
 
   const handleAction = async (action: string) => {
-    if (!email) return
+    if (!email || !isAuthenticated) return
 
     try {
+      const token = getAuthToken()
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      
       const response = await fetch(`/api/mail/emails/${email.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ action })
       })
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.')
+        router.push('/login')
+        return
+      }
 
       if (!response.ok) throw new Error(`Failed to ${action}`)
       

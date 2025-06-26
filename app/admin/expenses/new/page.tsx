@@ -42,7 +42,7 @@ export default function NewExpensePage() {
       })
 
       if (response.ok) {
-        router.push('/expenses')
+        router.push('/admin/expenses')
       } else {
         const error = await response.json()
         alert(error.error || 'Failed to create expense')
@@ -56,7 +56,7 @@ export default function NewExpensePage() {
   }
 
   const handleCancel = () => {
-    router.push('/expenses')
+            router.push('/admin/expenses')
   }
 
   return (

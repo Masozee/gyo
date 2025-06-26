@@ -1,12 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 import { getEmails, updateEmails, deleteEmails, getUnreadCount } from '@/lib/email-storage'
+import { supabase } from '@/lib/db'
 
-// For now, use a mock user ID. In a real app, this would come from authentication
-const MOCK_USER_ID = 1
+// Get authenticated user from request
+async function getAuthenticatedUser(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  
+  const token = authHeader.split(' ')[1]
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (error || !user) {
+      return null
+    }
+    return user
+  } catch (error) {
+    return null
+  }
+}
+
+// Use a default user ID for database operations (like tasks)
+const DEFAULT_USER_ID = 1
 
 export async function GET(request: NextRequest) {
   try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(request)
+    if (!supabaseUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const folder = searchParams.get('folder') || 'inbox'
     const starred = searchParams.get('starred') === 'true'
@@ -15,9 +44,9 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0
 
-    // Get emails from database
+    // Get emails from database using default user ID
     const emailList = await getEmails({
-      userId: MOCK_USER_ID,
+      userId: DEFAULT_USER_ID,
       folder,
       starred: starred || undefined,
       search,
@@ -27,7 +56,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get unread count
-    const unreadCount = await getUnreadCount(MOCK_USER_ID, folder)
+    const unreadCount = await getUnreadCount(DEFAULT_USER_ID, folder)
 
     // Transform data for frontend compatibility
     const transformedEmails = emailList.map(email => ({
@@ -63,6 +92,15 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    // Check authentication
+    const supabaseUser = await getAuthenticatedUser(request)
+    if (!supabaseUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Please log in' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { emailIds, action, value } = body
 
@@ -108,8 +146,8 @@ export async function PATCH(request: NextRequest) {
         )
     }
 
-    // Update emails in database
-    await updateEmails(numericEmailIds, MOCK_USER_ID, updates)
+    // Update emails in database using default user ID
+    await updateEmails(numericEmailIds, DEFAULT_USER_ID, updates)
     
     return NextResponse.json({
       success: true,

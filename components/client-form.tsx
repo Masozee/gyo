@@ -11,9 +11,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 interface ClientFormProps {
   initialData?: any
   onSubmit: (data: any) => void
+  onCancel?: () => void
 }
 
-export function ClientForm({ initialData, onSubmit }: ClientFormProps) {
+export function ClientForm({ initialData, onSubmit, onCancel }: ClientFormProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     email: initialData?.email || "",
@@ -240,7 +241,7 @@ export function ClientForm({ initialData, onSubmit }: ClientFormProps) {
       </div>
 
       <div className="flex justify-end space-x-2 pt-4 border-t bg-background sticky bottom-0">
-        <Button type="button" variant="outline">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit">
