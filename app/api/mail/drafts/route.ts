@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'nodejs';
 import { createDraft, getDrafts, updateDraft, deleteDraft } from '@/lib/email-storage'
+import type { EmailDraft } from '@/lib/schema'
 
 // For now, use a mock user ID. In a real app, this would come from authentication
 const MOCK_USER_ID = 1
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const drafts = await getDrafts(MOCK_USER_ID)
     
     // Transform data for frontend compatibility
-    const transformedDrafts = drafts.map(draft => ({
+    const transformedDrafts = drafts.map((draft: EmailDraft) => ({
       id: draft.id.toString(),
       from: 'mail@nurojilukmansyah.com',
       fromName: 'Draft',

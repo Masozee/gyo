@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'nodejs';
 import { getEmails, updateEmails, deleteEmails, getUnreadCount } from '@/lib/email-storage'
 import { supabase } from '@/lib/db'
+import type { Email } from '@/lib/schema'
 
 // Get authenticated user from request
 async function getAuthenticatedUser(request: NextRequest) {
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     const unreadCount = await getUnreadCount(DEFAULT_USER_ID, folder)
 
     // Transform data for frontend compatibility
-    const transformedEmails = emailList.map(email => ({
+    const transformedEmails = emailList.map((email: Email) => ({
       id: email.id.toString(),
       from: email.from,
       fromName: email.fromName || email.from,

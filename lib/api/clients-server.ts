@@ -1,4 +1,4 @@
-import { db } from '@/lib/db-server';
+import { db } from '../db-server';
 import { clients, type Client, type NewClient } from '@/lib/schema';
 import { eq, ilike, desc, count } from 'drizzle-orm';
 

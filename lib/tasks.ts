@@ -1,4 +1,4 @@
-import { db } from '@/lib/db-server';
+import { db } from './db-server';
 import { tasks, projects, users, Task, NewTask } from '@/lib/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 
