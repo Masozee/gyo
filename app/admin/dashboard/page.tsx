@@ -20,6 +20,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle"
 import { CommandPalette } from "@/components/command-palette"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { REFRESH_INTERVALS } from "@/lib/config"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ChartBarInteractive } from "@/components/chart-bar-interactive"
@@ -48,7 +49,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-// Function to fetch real website traffic data
+// Function to fetch real website traffic data with improved caching and error handling
 const fetchWebsiteTraffic = async () => {
   try {
     // This would typically fetch from your analytics API (Google Analytics, etc.)
@@ -57,7 +58,10 @@ const fetchWebsiteTraffic = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      cache: 'no-cache'
+      // Use default caching to work with server-side cache headers
+      cache: 'default',
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(10000) // 10 second timeout
     })
     if (!response.ok) {
       throw new Error(`Failed to fetch website traffic: ${response.status}`)
@@ -78,7 +82,7 @@ const fetchWebsiteTraffic = async () => {
   }
 }
 
-// Function to fetch real API traffic data
+// Function to fetch real API traffic data with improved caching and error handling
 const fetchApiTraffic = async () => {
   try {
     // This would typically fetch from your server logs or monitoring service
@@ -87,7 +91,10 @@ const fetchApiTraffic = async () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      cache: 'no-cache'
+      // Use default caching to work with server-side cache headers
+      cache: 'default',
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(10000) // 10 second timeout
     })
     if (!response.ok) {
       throw new Error(`Failed to fetch API traffic: ${response.status}`)
@@ -341,7 +348,7 @@ export default function DashboardPage() {
     requireAuth()
   }, [requireAuth])
 
-  // Simulate real-time data fetching
+  // Simulate real-time data fetching with optimized intervals
   useEffect(() => {
     const fetchData = async () => {
       const newData = await generateRealtimeData()
@@ -351,8 +358,9 @@ export default function DashboardPage() {
 
     fetchData()
     
-    // Update data every 30 seconds to simulate real-time updates
-    const interval = setInterval(fetchData, 30000)
+    // Update data at configurable intervals to reduce API calls
+    // This is much more reasonable for analytics data that doesn't change frequently
+    const interval = setInterval(fetchData, REFRESH_INTERVALS.DASHBOARD_ANALYTICS)
     
     return () => clearInterval(interval)
   }, [])

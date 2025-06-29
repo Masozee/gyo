@@ -54,9 +54,9 @@ const data = {
   },
   teams: [
     {
-      name: "Acme Inc",
+      name: "Nuroji Lukman Syah",
       logo: GalleryVerticalEnd,
-      plan: "Enterprise",
+      plan: "Personal",
     },
     {
       name: "Acme Corp.",

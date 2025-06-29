@@ -14,110 +14,49 @@ export function useAuth() {
     // Check for existing session
     const checkSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        // First check server-side session
+        const response = await fetch('/api/auth/me')
         
-        if (error) {
-          console.error('Session error:', error)
-          localStorage.removeItem('user')
-          localStorage.removeItem('session')
-        } else if (session?.user) {
-          const userData = {
-            id: parseInt(session.user.id) || 1,
-            email: session.user.email!,
-            password: '', // Not stored in auth session
-            firstName: session.user.user_metadata?.firstName || null,
-            lastName: session.user.user_metadata?.lastName || null,
-            username: session.user.user_metadata?.username || null,
-            avatar: null,
-            bio: null,
-            phone: null,
-            dateOfBirth: null,
-            address: null,
-            city: null,
-            state: null,
-            zipCode: null,
-            country: null,
-            company: null,
-            jobTitle: null,
-            website: null,
-            isActive: true,
-            emailVerified: session.user.email_confirmed_at ? true : false,
-            createdAt: session.user.created_at ? new Date(session.user.created_at) : new Date(),
-            updatedAt: session.user.updated_at ? new Date(session.user.updated_at) : new Date()
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.user) {
+            setUser(data.user)
+            localStorage.setItem('user', JSON.stringify(data.user))
+            setLoading(false)
+            return
           }
-          setUser(userData)
-          localStorage.setItem('user', JSON.stringify(userData))
-          localStorage.setItem('session', JSON.stringify({
-            accessToken: session.access_token,
-            refreshToken: session.refresh_token,
-            expiresAt: session.expires_at
-          }))
-        } else {
-          // No session, check localStorage as fallback
-          const userData = localStorage.getItem('user')
-          if (userData) {
-            try {
-              setUser(JSON.parse(userData))
-            } catch (error) {
-              console.error('Error parsing user data:', error)
-              localStorage.removeItem('user')
-              localStorage.removeItem('session')
-            }
+        }
+        
+        // Fallback to localStorage
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          try {
+            const parsedUser = JSON.parse(userData)
+            setUser(parsedUser)
+          } catch (error) {
+            console.error('Error parsing user data:', error)
+            localStorage.removeItem('user')
           }
         }
       } catch (error) {
         console.error('Error checking session:', error)
+        // Fallback to localStorage
+        const userData = localStorage.getItem('user')
+        if (userData) {
+          try {
+            const parsedUser = JSON.parse(userData)
+            setUser(parsedUser)
+          } catch (error) {
+            console.error('Error parsing user data:', error)
+            localStorage.removeItem('user')
+          }
+        }
       } finally {
         setLoading(false)
       }
     }
 
     checkSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          const userData = {
-            id: parseInt(session.user.id) || 1,
-            email: session.user.email!,
-            password: '', // Not stored in auth session
-            firstName: session.user.user_metadata?.firstName || null,
-            lastName: session.user.user_metadata?.lastName || null,
-            username: session.user.user_metadata?.username || null,
-            avatar: null,
-            bio: null,
-            phone: null,
-            dateOfBirth: null,
-            address: null,
-            city: null,
-            state: null,
-            zipCode: null,
-            country: null,
-            company: null,
-            jobTitle: null,
-            website: null,
-            isActive: true,
-            emailVerified: session.user.email_confirmed_at ? true : false,
-            createdAt: session.user.created_at ? new Date(session.user.created_at) : new Date(),
-            updatedAt: session.user.updated_at ? new Date(session.user.updated_at) : new Date()
-          }
-          setUser(userData)
-          localStorage.setItem('user', JSON.stringify(userData))
-          localStorage.setItem('session', JSON.stringify({
-            accessToken: session.access_token,
-            refreshToken: session.refresh_token,
-            expiresAt: session.expires_at
-          }))
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null)
-          localStorage.removeItem('user')
-          localStorage.removeItem('session')
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
   }, [])
 
   const login = (userData: User) => {
@@ -127,13 +66,12 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut()
+      await fetch('/api/auth/logout', { method: 'POST' })
     } catch (error) {
       console.error('Logout error:', error)
     }
     setUser(null)
     localStorage.removeItem('user')
-    localStorage.removeItem('session')
     router.push('/login')
   }
 

@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { REFRESH_INTERVALS } from "@/lib/config"
 
 interface EmailCounts {
   inbox: number
@@ -141,8 +142,8 @@ export function EmailSidebar() {
     }
 
     fetchCounts()
-    // Refresh counts every 30 seconds
-    const interval = setInterval(fetchCounts, 30000)
+    // Refresh counts at configurable intervals to reduce API load
+    const interval = setInterval(fetchCounts, REFRESH_INTERVALS.EMAIL_COUNTS)
     return () => clearInterval(interval)
   }, [])
 

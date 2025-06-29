@@ -631,6 +631,33 @@ export const contactSubmissions = pgTable('contact_submissions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// ─── CV Builder ───
+export const cvs = pgTable('cvs', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  template: text('template').notNull().default('ats'), // ats, creative, professional, minimal, modern
+  data: text('data').notNull(), // JSON string containing all CV data
+  fileName: text('file_name'), // generated file name
+  fileUrl: text('file_url'), // URL to generated PDF
+  isPublic: boolean('is_public').default(false),
+  userId: integer('user_id'), // optional if we want to associate with users
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// ─── CV Templates ───
+export const cvTemplates = pgTable('cv_templates', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  category: text('category').notNull(), // ats, creative, professional
+  previewImage: text('preview_image'),
+  isActive: boolean('is_active').default(true),
+  templateData: text('template_data'), // JSON for template structure/styling
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // ─── CMS Relations ───
 export const pagesRelations = relations(pages, ({ many }) => ({
   // Add relations if needed
@@ -665,6 +692,13 @@ export const mediaFilesRelations = relations(mediaFiles, ({ one }) => ({
   }),
 }));
 
+export const cvsRelations = relations(cvs, ({ one }) => ({
+  user: one(users, {
+    fields: [cvs.userId],
+    references: [users.id],
+  }),
+}));
+
 // ─── CMS Types ───
 export type Page = typeof pages.$inferSelect;
 export type NewPage = typeof pages.$inferInsert;
@@ -686,6 +720,12 @@ export type NewSiteSetting = typeof siteSettings.$inferInsert;
 
 export type ContactSubmission = typeof contactSubmissions.$inferSelect;
 export type NewContactSubmission = typeof contactSubmissions.$inferInsert;
+
+export type CV = typeof cvs.$inferSelect;
+export type NewCV = typeof cvs.$inferInsert;
+
+export type CVTemplate = typeof cvTemplates.$inferSelect;
+export type NewCVTemplate = typeof cvTemplates.$inferInsert;
 
 // ─── Extended Types with Relations ───
 export type ProjectWithRelations = Project & {

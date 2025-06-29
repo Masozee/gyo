@@ -7,6 +7,7 @@ import { ConditionalNavbar } from "@/components/conditional-navbar"
 import { ConditionalFooter } from "@/components/conditional-footer"
 import { FontProvider } from "@/components/font-provider"
 import { AnalyticsProvider } from "@/lib/analytics-client"
+import { StickyGeminiChat } from "@/components/sticky-gemini-chat"
 
 const firaCode = Fira_Code({
   variable: "--font-fira-code",
@@ -52,6 +53,7 @@ export default function RootLayout({
               {children}
             </main>
             <ConditionalFooter />
+            <StickyGeminiChat />
             <Toaster richColors position="top-right" />
           </AnalyticsProvider>
         </ThemeProvider>

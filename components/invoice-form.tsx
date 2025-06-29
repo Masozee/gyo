@@ -77,8 +77,8 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
           projectsResponse.json(),
         ]);
         
-        setClients(clientsData.clients);
-        setProjects(projectsData.projects);
+        setClients(clientsData.clients || []);
+        setProjects(projectsData.projects || []);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -102,7 +102,7 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
 
   // Calculate totals when line items change
   useEffect(() => {
-    const subtotal = formData.lineItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const subtotal = formData.lineItems?.reduce((sum, item) => sum + (item.totalPrice || 0), 0) || 0;
     const taxAmount = subtotal * (formData.taxRate / 100);
     const totalAmount = subtotal + taxAmount;
 
@@ -115,6 +115,8 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
   }, [formData.lineItems, formData.taxRate]);
 
   const handleLineItemChange = (index: number, field: keyof LineItem, value: string | number) => {
+    if (!formData.lineItems) return;
+    
     const newLineItems = [...formData.lineItems];
     newLineItems[index] = {
       ...newLineItems[index],
@@ -140,12 +142,12 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
   };
 
   const removeLineItem = (index: number) => {
-    if (formData.lineItems.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        lineItems: prev.lineItems.filter((_, i) => i !== index),
-      }));
-    }
+    if (!formData.lineItems || formData.lineItems.length <= 1) return;
+    
+    setFormData(prev => ({
+      ...prev,
+      lineItems: prev.lineItems?.filter((_, i) => i !== index) || [],
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -192,11 +194,11 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
                   {loadingClients ? (
                     <SelectItem value="loading" disabled>Loading clients...</SelectItem>
                   ) : (
-                    clients.map(client => (
+                    clients?.map(client => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.name} {client.company && `(${client.company})`}
                       </SelectItem>
-                    ))
+                    )) || []
                   )}
                 </SelectContent>
               </Select>
@@ -215,11 +217,11 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
                   {loadingProjects ? (
                     <SelectItem value="loading" disabled>Loading projects...</SelectItem>
                   ) : (
-                    projects.map(project => (
+                    projects?.map(project => (
                       <SelectItem key={project.id} value={project.id.toString()}>
                         {project.title}
                       </SelectItem>
-                    ))
+                    )) || []
                   )}
                 </SelectContent>
               </Select>
@@ -310,7 +312,7 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {formData.lineItems.map((item, index) => (
+            {(formData.lineItems || []).map((item, index) => (
               <div key={index} className="grid grid-cols-12 gap-4 items-end">
                 <div className="col-span-5">
                   <Label>Description</Label>
@@ -352,7 +354,7 @@ export function InvoiceForm({ initialData, onSubmit, isSubmitting }: InvoiceForm
                     variant="outline"
                     size="sm"
                     onClick={() => removeLineItem(index)}
-                    disabled={formData.lineItems.length === 1}
+                    disabled={!formData.lineItems || formData.lineItems.length <= 1}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

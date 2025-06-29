@@ -15,6 +15,13 @@
       "when": 1750911827837,
       "tag": "0001_previous_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1751213947684,
+      "tag": "0002_gifted_pestilence",
+      "breakpoints": true
     }
   ]
 }

@@ -29,9 +29,12 @@ export default function ToolsLayout({
   
   // Get the current tools section for breadcrumbs
   const getToolsSection = () => {
+    if (pathname.includes('/cv-builder')) return 'CV Builder'
     if (pathname.includes('/url-shortener')) return 'URL Shortener'
     if (pathname.includes('/qr-codes')) return 'QR Code Generator'
     if (pathname.includes('/document-signing')) return 'Document Signing'
+    if (pathname.includes('/youtube-downloader')) return 'YouTube Downloader'
+    if (pathname.includes('/gemini-chat')) return 'Chat with Gemini AI'
     if (pathname.includes('/calculator')) return 'Calculator'
     if (pathname.includes('/hash-generator')) return 'Hash Generator'
     if (pathname.includes('/color-palette')) return 'Color Palette'
@@ -82,7 +85,7 @@ export default function ToolsLayout({
         </header>
         <div className="flex flex-1 overflow-hidden">
           <ToolsSidebar />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto p-6">
             {children}
           </main>
         </div>

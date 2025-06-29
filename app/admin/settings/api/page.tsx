@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Save, Eye, EyeOff, TestTube, CheckCircle, XCircle } from "lucide-react"
+import { Save, Eye, EyeOff, TestTube, CheckCircle, XCircle, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,8 +17,13 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/hooks/use-toast"
+import { useSettings } from "@/hooks/use-settings"
 
 export default function APISettingsPage() {
+  const { toast } = useToast()
+  const { settings, loading, error, updateSettings, getSetting, getSettingAsBoolean } = useSettings('api')
+  
   // Google Analytics
   const [gaEnabled, setGaEnabled] = React.useState(false)
   const [gaTrackingId, setGaTrackingId] = React.useState("")
@@ -46,9 +51,72 @@ export default function APISettingsPage() {
     google: "disconnected",
     meta: "disconnected"
   })
+  const [saving, setSaving] = React.useState(false)
 
-  const handleSave = () => {
-    console.log("Saving API settings...")
+  // Load settings when they're available
+  React.useEffect(() => {
+    if (!loading && Object.keys(settings).length > 0) {
+      setGaEnabled(getSettingAsBoolean('google_analytics_enabled', false))
+      setGaTrackingId(getSetting('google_analytics_id', ''))
+      setGscEnabled(getSettingAsBoolean('google_search_console_enabled', false))
+      setGscSiteUrl(getSetting('google_search_console_url', ''))
+      setGscVerificationCode(getSetting('google_search_console_verification', ''))
+      setGmapsEnabled(getSettingAsBoolean('google_maps_enabled', false))
+      setGmapsApiKey(getSetting('google_maps_api_key', ''))
+      setMetaEnabled(getSettingAsBoolean('meta_enabled', false))
+      setMetaAppId(getSetting('meta_app_id', ''))
+      setMetaAppSecret(getSetting('meta_app_secret', ''))
+      setMetaPixelId(getSetting('meta_pixel_id', ''))
+      
+      // Update connection status based on whether API keys are configured
+      setConnectionStatus({
+        google: (gaTrackingId || gmapsApiKey) ? "connected" : "disconnected",
+        meta: (metaAppId && metaAppSecret) ? "connected" : "disconnected"
+      })
+    }
+  }, [settings, loading, getSetting, getSettingAsBoolean])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const settingsToUpdate = {
+        google_analytics_enabled: { value: gaEnabled.toString(), type: 'boolean', group: 'api', label: 'Google Analytics Enabled', description: 'Enable Google Analytics tracking' },
+        google_analytics_id: { value: gaTrackingId, type: 'password', group: 'api', label: 'Google Analytics ID', description: 'Your Google Analytics tracking ID' },
+        google_search_console_enabled: { value: gscEnabled.toString(), type: 'boolean', group: 'api', label: 'Google Search Console Enabled', description: 'Enable Google Search Console integration' },
+        google_search_console_url: { value: gscSiteUrl, type: 'url', group: 'api', label: 'Google Search Console Site URL', description: 'Your verified site URL in Google Search Console' },
+        google_search_console_verification: { value: gscVerificationCode, type: 'textarea', group: 'api', label: 'Google Search Console Verification', description: 'HTML verification code from Google Search Console' },
+        google_maps_enabled: { value: gmapsEnabled.toString(), type: 'boolean', group: 'api', label: 'Google Maps Enabled', description: 'Enable Google Maps integration' },
+        google_maps_api_key: { value: gmapsApiKey, type: 'password', group: 'api', label: 'Google Maps API Key', description: 'Your Google Maps API key' },
+        meta_enabled: { value: metaEnabled.toString(), type: 'boolean', group: 'api', label: 'Meta Integration Enabled', description: 'Enable Facebook/Meta integrations' },
+        meta_app_id: { value: metaAppId, type: 'text', group: 'api', label: 'Meta App ID', description: 'Your Facebook/Meta App ID' },
+        meta_app_secret: { value: metaAppSecret, type: 'password', group: 'api', label: 'Meta App Secret', description: 'Your Facebook/Meta App Secret' },
+        meta_pixel_id: { value: metaPixelId, type: 'text', group: 'api', label: 'Meta Pixel ID', description: 'Your Facebook Pixel ID' }
+      }
+      
+      const success = await updateSettings(settingsToUpdate)
+      if (success) {
+        toast({
+          title: "Settings saved",
+          description: "API settings have been updated successfully.",
+        })
+        
+        // Update connection status
+        setConnectionStatus({
+          google: (gaTrackingId || gmapsApiKey) ? "connected" : "disconnected",
+          meta: (metaAppId && metaAppSecret) ? "connected" : "disconnected"
+        })
+      } else {
+        throw new Error("Failed to save settings")
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to save API settings. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const testConnection = (service: string) => {
@@ -58,6 +126,11 @@ export default function APISettingsPage() {
       ...prev,
       [service]: "connected"
     }))
+    
+    toast({
+      title: "Connection test",
+      description: `${service} connection test completed.`,
+    })
   }
 
   return (
@@ -69,9 +142,13 @@ export default function APISettingsPage() {
             Configure third-party API integrations and services
           </p>
         </div>
-        <Button onClick={handleSave}>
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
+        <Button onClick={handleSave} disabled={saving || loading}>
+          {saving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 

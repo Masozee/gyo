@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Save, RefreshCw } from "lucide-react"
+import { Save, RefreshCw, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,20 +23,69 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/hooks/use-toast"
+import { useSettings } from "@/hooks/use-settings"
 
 export default function GeneralSettingsPage() {
-  const [siteName, setSiteName] = React.useState("Developer Portfolio")
-  const [siteDescription, setSiteDescription] = React.useState("Full-stack developer specializing in Django, Next.js, TypeScript, and UI/UX design")
-  const [siteUrl, setSiteUrl] = React.useState("https://yoursite.com")
-  const [timezone, setTimezone] = React.useState("UTC")
-  const [language, setLanguage] = React.useState("en")
+  const { toast } = useToast()
+  const { settings, loading, error, updateSettings, getSetting, getSettingAsBoolean } = useSettings('general')
+  
+  const [siteName, setSiteName] = React.useState("")
+  const [siteDescription, setSiteDescription] = React.useState("")
+  const [siteUrl, setSiteUrl] = React.useState("")
+  const [timezone, setTimezone] = React.useState("")
+  const [language, setLanguage] = React.useState("")
   const [maintenanceMode, setMaintenanceMode] = React.useState(false)
   const [analyticsEnabled, setAnalyticsEnabled] = React.useState(true)
   const [cookieConsent, setCookieConsent] = React.useState(true)
+  const [saving, setSaving] = React.useState(false)
 
-  const handleSave = () => {
-    // Save settings to backend/env
-    console.log("Saving general settings...")
+  // Load settings when they're available
+  React.useEffect(() => {
+    if (!loading && Object.keys(settings).length > 0) {
+      setSiteName(getSetting('site_name', 'Developer Portfolio'))
+      setSiteDescription(getSetting('site_description', 'Full-stack developer specializing in Django, Next.js, TypeScript, and UI/UX design'))
+      setSiteUrl(getSetting('site_url', 'https://yoursite.com'))
+      setTimezone(getSetting('timezone', 'UTC'))
+      setLanguage(getSetting('language', 'en'))
+      setMaintenanceMode(getSettingAsBoolean('maintenance_mode', false))
+      setAnalyticsEnabled(getSettingAsBoolean('analytics_enabled', true))
+      setCookieConsent(getSettingAsBoolean('cookie_consent', true))
+    }
+  }, [settings, loading, getSetting, getSettingAsBoolean])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const settingsToUpdate = {
+        site_name: { value: siteName, type: 'text', group: 'general', label: 'Site Name', description: 'The name of your portfolio website' },
+        site_description: { value: siteDescription, type: 'textarea', group: 'general', label: 'Site Description', description: 'Brief description of your site' },
+        site_url: { value: siteUrl, type: 'url', group: 'general', label: 'Site URL', description: 'The main URL of your website' },
+        timezone: { value: timezone, type: 'select', group: 'general', label: 'Timezone', description: 'Default timezone for the application' },
+        language: { value: language, type: 'select', group: 'general', label: 'Language', description: 'Default language for the application' },
+        maintenance_mode: { value: maintenanceMode.toString(), type: 'boolean', group: 'general', label: 'Maintenance Mode', description: 'Enable maintenance mode to show a coming soon page' },
+        analytics_enabled: { value: analyticsEnabled.toString(), type: 'boolean', group: 'general', label: 'Analytics Tracking', description: 'Enable Google Analytics and other tracking services' },
+        cookie_consent: { value: cookieConsent.toString(), type: 'boolean', group: 'general', label: 'Cookie Consent', description: 'Show cookie consent banner for GDPR compliance' }
+      }
+      
+      const success = await updateSettings(settingsToUpdate)
+      if (success) {
+        toast({
+          title: "Settings saved",
+          description: "General settings have been updated successfully.",
+        })
+      } else {
+        throw new Error("Failed to save settings")
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -48,9 +97,13 @@ export default function GeneralSettingsPage() {
             Basic configuration for your portfolio website
           </p>
         </div>
-        <Button onClick={handleSave}>
-          <Save className="w-4 h-4 mr-2" />
-          Save Changes
+        <Button onClick={handleSave} disabled={saving || loading}>
+          {saving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {saving ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 
@@ -204,20 +257,31 @@ export default function GeneralSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Environment Variables Notice */}
+          {/* Database Configuration Notice */}
           <Card>
             <CardHeader>
-              <CardTitle>Environment Configuration</CardTitle>
+              <CardTitle>Database Configuration</CardTitle>
               <CardDescription>
-                Settings are stored in environment variables
+                Settings are dynamically stored in the database
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="p-4 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground">
-                  These settings will be saved to your environment variables and database. 
-                  Make sure to configure your .env file with the appropriate values.
+                  These settings are stored in your database and can be changed dynamically without 
+                  redeploying your application. Changes take effect immediately.
                 </p>
+                {error && (
+                  <div className="mt-2 p-2 bg-destructive/10 text-destructive text-sm rounded">
+                    Error loading settings: {error}
+                  </div>
+                )}
+                {loading && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading settings...
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

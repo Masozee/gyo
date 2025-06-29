@@ -18,9 +18,18 @@ import {
   ExternalLink,
   Youtube,
   Bot,
+  FileText,
 } from "lucide-react"
 
 const tools = [
+  {
+    title: "CV Builder",
+    description: "Create professional CVs with ATS-friendly and creative templates. Download as PDF instantly.",
+    icon: FileText,
+    href: "/admin/tools/cv-builder",
+    color: "bg-indigo-500",
+    features: ["ATS Templates", "Creative Designs", "PDF Download", "Multiple Formats"],
+  },
   {
     title: "URL Shortener",
     description: "Create short URLs and track click analytics. Perfect for social media and marketing campaigns.",

@@ -12,11 +12,20 @@ import {
   Palette,
   Zap,
   Globe,
+  FileText,
+  Youtube,
+  Bot,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
 const toolsNavigation = [
+  {
+    title: "CV Builder",
+    icon: FileText,
+    href: "/admin/tools/cv-builder",
+    description: "Create professional CVs with templates",
+  },
   {
     title: "URL Shortener",
     icon: Link2,
@@ -34,6 +43,18 @@ const toolsNavigation = [
     icon: FileSignature,
     href: "/admin/tools/document-signing",
     description: "Send documents for digital signatures",
+  },
+  {
+    title: "YouTube Downloader",
+    icon: Youtube,
+    href: "/admin/tools/youtube-downloader",
+    description: "Download YouTube videos and audio",
+  },
+  {
+    title: "Chat with Gemini AI",
+    icon: Bot,
+    href: "/admin/tools/gemini-chat",
+    description: "AI assistant for coding and writing",
   },
   {
     title: "Calculator",
@@ -92,8 +113,8 @@ export function ToolsSidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-primary hover:text-primary-foreground",
-                  isActive && "bg-primary text-primary-foreground"
+                  "flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-green-500 hover:text-white",
+                  isActive && "bg-green-500 text-white"
                 )}
               >
                 <Icon className="w-5 h-5 mt-0.5 shrink-0" />
@@ -101,7 +122,7 @@ export function ToolsSidebar() {
                   <div className="font-medium text-sm">{item.title}</div>
                   <div className={cn(
                     "text-xs mt-1",
-                    isActive ? "text-primary-foreground/80" : "text-muted-foreground"
+                    isActive ? "text-white/80" : "text-muted-foreground"
                   )}>
                     {item.description}
                   </div>
@@ -123,7 +144,7 @@ export function ToolsSidebar() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>8 Tools Loaded</span>
+              <span>{toolsNavigation.length} Tools Loaded</span>
             </div>
           </div>
         </div>
