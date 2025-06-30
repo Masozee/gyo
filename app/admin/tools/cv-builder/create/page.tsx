@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CVBuilderForm } from '@/components/cv-builder-form';
 import { CVPreview } from '@/components/cv-preview';
-import { CV_TEMPLATES, DEFAULT_CV_DATA, type CVData } from '@/lib/cv-types';
+import { CV_TEMPLATE, DEFAULT_CV_DATA, type CVData } from '@/lib/cv-types';
 import { ArrowLeft, Save, Download, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -13,19 +13,9 @@ function CreateCVContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [cvData, setCvData] = useState<CVData>(DEFAULT_CV_DATA);
-  const [selectedTemplate, setSelectedTemplate] = useState('ats-simple');
+  const selectedTemplate = CV_TEMPLATE.slug;
   const [showPreview, setShowPreview] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const templateParam = searchParams.get('template');
-    if (templateParam) {
-      const template = CV_TEMPLATES.find(t => t.slug === templateParam);
-      if (template) {
-        setSelectedTemplate(template.slug);
-      }
-    }
-  }, [searchParams]);
 
   const handleSave = async () => {
     try {
@@ -86,7 +76,7 @@ function CreateCVContent() {
     }
   };
 
-  const currentTemplate = CV_TEMPLATES.find(t => t.slug === selectedTemplate);
+  const currentTemplate = CV_TEMPLATE;
 
   return (
     <div className="space-y-6">
@@ -100,7 +90,7 @@ function CreateCVContent() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Create CV</h1>
             <p className="text-muted-foreground">
-              Template: {currentTemplate?.name || 'Unknown'}
+              Using: {currentTemplate.name}
             </p>
           </div>
         </div>
@@ -130,8 +120,6 @@ function CreateCVContent() {
           <CVBuilderForm
             data={cvData}
             onChange={setCvData}
-            template={selectedTemplate}
-            onTemplateChange={setSelectedTemplate}
           />
         </div>
 

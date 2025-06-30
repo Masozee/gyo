@@ -4,25 +4,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Eye, Sparkles, Briefcase, Palette } from 'lucide-react';
-import { CV_TEMPLATES, type CVTemplate } from '@/lib/cv-types';
+import { FileText, Download, Eye, Sparkles, Palette, Type, Upload } from 'lucide-react';
+import { CV_TEMPLATE } from '@/lib/cv-types';
 import Link from 'next/link';
 
 export default function CVBuilderPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  const categories = [
-    { id: 'all', name: 'All Templates', icon: FileText },
-    { id: 'ats', name: 'ATS Friendly', icon: FileText },
-    { id: 'professional', name: 'Professional', icon: Briefcase },
-    { id: 'creative', name: 'Creative', icon: Palette },
-    { id: 'minimal', name: 'Minimal', icon: FileText },
-    { id: 'modern', name: 'Modern', icon: Sparkles },
-  ];
-
-  const filteredTemplates = selectedCategory === 'all' 
-    ? CV_TEMPLATES 
-    : CV_TEMPLATES.filter(template => template.category === selectedCategory);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -31,7 +17,7 @@ export default function CVBuilderPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">CV Builder</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Create professional CVs with ATS-friendly templates
+            Create professional CVs with customizable fonts and styling
           </p>
         </div>
         <Button asChild className="w-fit">
@@ -41,25 +27,23 @@ export default function CVBuilderPage() {
         </Button>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center space-x-3">
-            <FileText className="h-6 w-6 text-blue-600" />
+            <Upload className="h-6 w-6 text-blue-600" />
             <div>
-              <p className="text-xs text-muted-foreground">Templates</p>
-              <p className="text-lg font-bold">{CV_TEMPLATES.length}</p>
+              <p className="text-sm font-medium">Photo Upload</p>
+              <p className="text-xs text-muted-foreground">Add your professional photo</p>
             </div>
           </div>
         </Card>
         <Card className="p-4">
           <div className="flex items-center space-x-3">
-            <Briefcase className="h-6 w-6 text-green-600" />
+            <Type className="h-6 w-6 text-green-600" />
             <div>
-              <p className="text-xs text-muted-foreground">ATS Ready</p>
-              <p className="text-lg font-bold">
-                {CV_TEMPLATES.filter(t => t.category === 'ats').length}
-              </p>
+              <p className="text-sm font-medium">Google Fonts</p>
+              <p className="text-xs text-muted-foreground">10+ font options</p>
             </div>
           </div>
         </Card>
@@ -67,10 +51,8 @@ export default function CVBuilderPage() {
           <div className="flex items-center space-x-3">
             <Palette className="h-6 w-6 text-purple-600" />
             <div>
-              <p className="text-xs text-muted-foreground">Creative</p>
-              <p className="text-lg font-bold">
-                {CV_TEMPLATES.filter(t => t.category === 'creative').length}
-              </p>
+              <p className="text-sm font-medium">Custom Colors</p>
+              <p className="text-xs text-muted-foreground">Personalize your style</p>
             </div>
           </div>
         </Card>
@@ -78,106 +60,89 @@ export default function CVBuilderPage() {
           <div className="flex items-center space-x-3">
             <Sparkles className="h-6 w-6 text-orange-600" />
             <div>
-              <p className="text-xs text-muted-foreground">Popular</p>
-              <p className="text-lg font-bold">
-                {CV_TEMPLATES.filter(t => t.isPopular).length}
-              </p>
+              <p className="text-sm font-medium">AI Assistant</p>
+              <p className="text-xs text-muted-foreground">Gemini-powered summaries</p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Category Filter */}
-      <div className="flex flex-wrap gap-2">
-        {categories.map((category) => {
-          const IconComponent = category.icon;
-          return (
-            <Button
-              key={category.id}
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => setSelectedCategory(category.id)}
-              size="sm"
-              className="flex items-center gap-1.5"
-            >
-              <IconComponent className="h-3 w-3" />
-              <span className="text-xs">{category.name}</span>
+      {/* Template Preview */}
+      <Card className="group hover:shadow-lg transition-all duration-300">
+        <CardHeader>
+          <div className="aspect-[4/3] bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg mb-4 relative overflow-hidden">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <FileText className="h-16 w-16 text-blue-400 mx-auto mb-2" />
+                <p className="text-blue-600 font-medium">Professional CV Template</p>
+                <p className="text-blue-500 text-sm">Customizable & ATS-Friendly</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold">{CV_TEMPLATE.name}</h3>
+            <p className="text-muted-foreground">{CV_TEMPLATE.description}</p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Features */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {CV_TEMPLATE.features.map((feature) => (
+              <Badge key={feature} variant="secondary" className="text-sm">
+                {feature}
+              </Badge>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button asChild className="flex-1">
+              <Link href="/admin/tools/cv-builder/create">
+                <FileText className="h-4 w-4 mr-2" />
+                Create New CV
+              </Link>
             </Button>
-          );
-        })}
-      </div>
+            <Button variant="outline" asChild>
+              <Link href="/admin/tools/cv-builder/my-cvs">
+                <Eye className="h-4 w-4 mr-2" />
+                View My CVs
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Templates Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredTemplates.map((template) => (
-          <Card key={template.id} className="group hover:shadow-md transition-all duration-200">
-            <CardHeader className="pb-3">
-              <div className="aspect-[3/4] bg-gradient-to-br from-slate-50 to-slate-100 rounded-md mb-3 relative overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <FileText className="h-12 w-12 text-slate-300" />
-                </div>
-                {template.isPopular && (
-                  <Badge className="absolute top-2 right-2 bg-orange-500 text-xs">
-                    Popular
-                  </Badge>
-                )}
+      {/* Getting Started */}
+      <Card>
+        <CardHeader>
+          <CardTitle>How it works</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-blue-600 font-bold">1</span>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <h3 className="font-semibold text-sm leading-tight">{template.name}</h3>
-                  <Badge variant="outline" className="text-xs capitalize ml-2 flex-shrink-0">
-                    {template.category}
-                  </Badge>
-                </div>
+              <h4 className="font-medium mb-2">Fill Your Information</h4>
+              <p className="text-sm text-muted-foreground">Add your personal details, work experience, and skills</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-green-600 font-bold">2</span>
               </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                {template.description}
-              </p>
-              
-              {/* Features */}
-              <div className="flex flex-wrap gap-1 mb-3">
-                {template.features.slice(0, 2).map((feature) => (
-                  <Badge key={feature} variant="secondary" className="text-xs">
-                    {feature}
-                  </Badge>
-                ))}
-                {template.features.length > 2 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{template.features.length - 2}
-                  </Badge>
-                )}
+              <h4 className="font-medium mb-2">Customize Style</h4>
+              <p className="text-sm text-muted-foreground">Choose fonts, colors, and add your professional photo</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-purple-600 font-bold">3</span>
               </div>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <Button asChild size="sm" className="flex-1">
-                  <Link href={`/admin/tools/cv-builder/create?template=${template.slug}`}>
-                    <FileText className="h-3 w-3 mr-1" />
-                    <span className="text-xs">Use</span>
-                  </Link>
-                </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/admin/tools/cv-builder/preview?template=${template.slug}`}>
-                    <Eye className="h-3 w-3" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Empty state */}
-      {filteredTemplates.length === 0 && (
-        <div className="text-center py-12">
-          <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No templates found</h3>
-          <p className="text-muted-foreground">
-            Try selecting a different category or check back later for new templates.
-          </p>
-        </div>
-      )}
+              <h4 className="font-medium mb-2">Download PDF</h4>
+              <p className="text-sm text-muted-foreground">Export your professional CV as a high-quality PDF</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

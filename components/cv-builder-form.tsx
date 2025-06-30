@@ -9,23 +9,90 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, User, Briefcase, GraduationCap, Code, Award, Globe, Languages } from 'lucide-react';
-import { type CVData, CV_TEMPLATES } from '@/lib/cv-types';
+import { Slider } from '@/components/ui/slider';
+import { Plus, Trash2, User, Briefcase, GraduationCap, Code, Award, Globe, Upload, Sparkles, Palette, Type } from 'lucide-react';
+import { type CVData, GOOGLE_FONTS } from '@/lib/cv-types';
+import { toast } from 'sonner';
 
 interface CVBuilderFormProps {
   data: CVData;
   onChange: (data: CVData) => void;
-  template: string;
-  onTemplateChange: (template: string) => void;
 }
 
-export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CVBuilderFormProps) {
+export function CVBuilderForm({ data, onChange }: CVBuilderFormProps) {
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
   const updateData = (section: keyof CVData, value: any) => {
     onChange({ ...data, [section]: value });
   };
 
   const updatePersonalInfo = (field: string, value: string) => {
     updateData('personalInfo', { ...data.personalInfo, [field]: value });
+  };
+
+  const updateStyling = (field: string, value: any) => {
+    updateData('styling', { ...data.styling, [field]: value });
+  };
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        updatePersonalInfo('photoUrl', result.photoUrl);
+        toast.success('Photo uploaded successfully!');
+      } else {
+        toast.error(result.error || 'Failed to upload photo');
+      }
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      toast.error('Failed to upload photo');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const generateSummary = async () => {
+    setIsGeneratingSummary(true);
+    try {
+      const response = await fetch('/api/ai/generate-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobTitle: data.experience[0]?.jobTitle || '',
+          experience: data.experience.length,
+          skills: data.skills.map(s => s.items.join(', ')).join(', '),
+          industry: data.experience[0]?.company || '',
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        updatePersonalInfo('summary', result.summary);
+        toast.success('Summary generated successfully!');
+      } else {
+        toast.error(result.error || 'Failed to generate summary');
+      }
+    } catch (error) {
+      console.error('Summary generation error:', error);
+      toast.error('Failed to generate summary');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
   };
 
   const addExperience = () => {
@@ -123,55 +190,15 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Template Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Code className="h-5 w-5 mr-2" />
-            Template Selection
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="template-select">Choose Template</Label>
-              <Select value={template} onValueChange={onTemplateChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CV_TEMPLATES.map((temp) => (
-                    <SelectItem key={temp.slug} value={temp.slug}>
-                      <div className="flex items-center justify-between w-full">
-                        <div>
-                          <div className="font-medium">{temp.name}</div>
-                          <div className="text-xs text-muted-foreground capitalize">{temp.category}</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {template && (
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="text-sm font-medium">
-                  {CV_TEMPLATES.find(t => t.slug === template)?.name}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {CV_TEMPLATES.find(t => t.slug === template)?.description}
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 gap-1 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-5 gap-1 h-auto p-1">
           <TabsTrigger value="personal" className="flex flex-col items-center gap-1 text-xs h-auto py-2 px-1">
             <User className="h-4 w-4" />
             <span className="text-xs">Personal</span>
+          </TabsTrigger>
+          <TabsTrigger value="styling" className="flex flex-col items-center gap-1 text-xs h-auto py-2 px-1">
+            <Palette className="h-4 w-4" />
+            <span className="text-xs">Styling</span>
           </TabsTrigger>
           <TabsTrigger value="experience" className="flex flex-col items-center gap-1 text-xs h-auto py-2 px-1">
             <Briefcase className="h-4 w-4" />
@@ -185,14 +212,6 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
             <Code className="h-4 w-4" />
             <span className="text-xs">Skills</span>
           </TabsTrigger>
-          <TabsTrigger value="projects" className="flex flex-col items-center gap-1 text-xs h-auto py-2 px-1">
-            <Globe className="h-4 w-4" />
-            <span className="text-xs">Projects</span>
-          </TabsTrigger>
-          <TabsTrigger value="additional" className="flex flex-col items-center gap-1 text-xs h-auto py-2 px-1">
-            <Award className="h-4 w-4" />
-            <span className="text-xs">More</span>
-          </TabsTrigger>
         </TabsList>
 
         {/* Personal Information */}
@@ -202,6 +221,41 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
               <CardTitle>Personal Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 p-4">
+              {/* Photo Upload */}
+              <div className="flex flex-col items-center space-y-4">
+                {data.personalInfo.photoUrl && (
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100">
+                    <img 
+                      src={data.personalInfo.photoUrl} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="photo-upload">Profile Photo</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      id="photo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={isUploadingPhoto}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('photo-upload')?.click()}
+                      disabled={isUploadingPhoto}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isUploadingPhoto ? 'Uploading...' : 'Upload Photo'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="fullName">Full Name *</Label>
@@ -259,8 +313,21 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
                   />
                 </div>
               </div>
+              
               <div>
-                <Label htmlFor="summary">Professional Summary *</Label>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="summary">Professional Summary *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateSummary}
+                    disabled={isGeneratingSummary}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {isGeneratingSummary ? 'Generating...' : 'AI Assist'}
+                  </Button>
+                </div>
                 <Textarea
                   id="summary"
                   value={data.personalInfo.summary}
@@ -273,7 +340,84 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
           </Card>
         </TabsContent>
 
-        {/* Experience */}
+        {/* Styling Options */}
+        <TabsContent value="styling">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Palette className="h-5 w-5 mr-2" />
+                CV Styling
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label>Font Family</Label>
+                <Select value={data.styling.fontFamily} onValueChange={(value) => updateStyling('fontFamily', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GOOGLE_FONTS.map((font) => (
+                      <SelectItem key={font.value} value={font.value}>
+                        <span style={{ fontFamily: font.value }}>{font.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Font Size: {data.styling.fontSize}px</Label>
+                <Slider
+                  value={[data.styling.fontSize]}
+                  onValueChange={(value) => updateStyling('fontSize', value[0])}
+                  min={12}
+                  max={18}
+                  step={1}
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="primaryColor">Primary Color</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    id="primaryColor"
+                    type="color"
+                    value={data.styling.primaryColor}
+                    onChange={(e) => updateStyling('primaryColor', e.target.value)}
+                    className="w-12 h-10 p-1"
+                  />
+                  <Input
+                    value={data.styling.primaryColor}
+                    onChange={(e) => updateStyling('primaryColor', e.target.value)}
+                    placeholder="#2563eb"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="textColor">Text Color</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    id="textColor"
+                    type="color"
+                    value={data.styling.textColor}
+                    onChange={(e) => updateStyling('textColor', e.target.value)}
+                    className="w-12 h-10 p-1"
+                  />
+                  <Input
+                    value={data.styling.textColor}
+                    onChange={(e) => updateStyling('textColor', e.target.value)}
+                    placeholder="#1f2937"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Experience (simplified for brevity - similar pattern to original) */}
         <TabsContent value="experience">
           <Card>
             <CardHeader>
@@ -370,7 +514,7 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
           </Card>
         </TabsContent>
 
-        {/* Education */}
+        {/* Education - Similar structure as experience */}
         <TabsContent value="education">
           <Card>
             <CardHeader>
@@ -527,116 +671,6 @@ export function CVBuilderForm({ data, onChange, template, onTemplateChange }: CV
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Projects */}
-        <TabsContent value="projects">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Projects
-                <Button onClick={addProject} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Project
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6 p-4">
-              {(data.projects || []).map((project, index) => (
-                <div key={project.id} className="border rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Project #{index + 1}</h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeProject(project.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <Label>Project Name *</Label>
-                      <Input
-                        value={project.name}
-                        onChange={(e) => updateProject(project.id, 'name', e.target.value)}
-                        placeholder="E-commerce Platform"
-                      />
-                    </div>
-                    <div>
-                      <Label>Technologies (comma-separated)</Label>
-                      <Input
-                        value={project.technologies.join(', ')}
-                        onChange={(e) => updateProject(project.id, 'technologies', 
-                          e.target.value.split(',').map(tech => tech.trim()).filter(tech => tech)
-                        )}
-                        placeholder="React, Node.js, MongoDB"
-                      />
-                    </div>
-                    <div>
-                      <Label>Project Link</Label>
-                      <Input
-                        value={project.link}
-                        onChange={(e) => updateProject(project.id, 'link', e.target.value)}
-                        placeholder="https://project.com"
-                      />
-                    </div>
-                    <div>
-                      <Label>GitHub Link</Label>
-                      <Input
-                        value={project.github}
-                        onChange={(e) => updateProject(project.id, 'github', e.target.value)}
-                        placeholder="https://github.com/user/project"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Description *</Label>
-                    <Textarea
-                      value={project.description}
-                      onChange={(e) => updateProject(project.id, 'description', e.target.value)}
-                      placeholder="Describe the project, your role, and key achievements"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              ))}
-              {(data.projects || []).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  No projects added yet. Click "Add Project" to get started.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Additional */}
-        <TabsContent value="additional">
-          <div className="space-y-6">
-            {/* Certifications */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Certifications (Optional)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Certifications section coming soon. For now, you can include certifications in your experience or education sections.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Languages */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Languages (Optional)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Languages section coming soon. For now, you can include language skills in your skills section.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
     </div>

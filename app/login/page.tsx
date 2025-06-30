@@ -22,7 +22,7 @@ export default function LoginPage() {
               />
             </svg>
           </div>
-          Acme Inc
+          Nuroji Lukman Syah
         </Link>
         <LoginForm />
       </div>

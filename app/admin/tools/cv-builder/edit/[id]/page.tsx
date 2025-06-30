@@ -179,8 +179,6 @@ function EditCVContent() {
           <CVBuilderForm
             data={cvData}
             onChange={setCvData}
-            template={selectedTemplate}
-            onTemplateChange={setSelectedTemplate}
           />
         </div>
 
